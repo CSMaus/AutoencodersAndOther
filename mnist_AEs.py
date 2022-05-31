@@ -1,5 +1,7 @@
 # doing this as shown in example (AEs paper in Habr, part 1)
 # here examples use only MNIST data!
+import sys
+
 from keras.datasets import mnist
 import numpy as np
 
@@ -9,6 +11,8 @@ from keras.models import Model
 
 import keras.backend as kb
 from keras.layers import Lambda
+
+from keras.regularizers import L1L2
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -114,6 +118,32 @@ def create_conv_ae():
     return encoder, decoder, autoencoder
 
 
+def create_sparse_ae():
+    encoding_dim = 16
+    lambda_l1 = 0.00001
+
+    # Encoder
+    input_img = Input(shape=(28, 28, 1))
+    flat_img = Flatten()(input_img)
+    x = Dense(encoding_dim * 3, activation='relu')(flat_img)
+    x = Dense(encoding_dim * 2, activation='relu')(x)
+    encoded = Dense(encoding_dim, activation='linear', activity_regularizer=L1L2(lambda_l1))(x)
+
+    # Decoder:
+    input_encoded = Input(shape=(encoding_dim,))
+    x = Dense(encoding_dim * 2, activation='relu')(input_encoded)
+    x = Dense(encoding_dim * 3, activation='relu')(x)
+    flat_decoded = Dense(28 * 28, activation='sigmoid')(x)
+    decoded = Reshape((28, 28, 1))(flat_decoded)
+
+    # Models
+    encoder = Model(input_img, encoded, name='encoder')
+    decoder = Model(input_encoded, decoded, name='decoder')
+    autoencoder = Model(input_img, decoder(encoder(input_img)), name='autoencoder')
+
+    return encoder, decoder, autoencoder
+
+
 def add_noise(x):
     noise_factor = 0.55
     x = x + kb.random_normal(x.get_shape(), 0.5, noise_factor)
@@ -133,6 +163,21 @@ def create_denoising_model(autoencoder):
     return noiser, denoiser_model
 
 
+s_encoder, s_decoder, s_autoencoder = create_sparse_ae()
+s_autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
+
+s_autoencoder.fit(x_train, x_train, epochs=10, batch_size=256, shuffle=True, validation_data=(x_test, x_test))
+
+n = 10
+imgs = x_test[:n]
+encoded_imgs = s_encoder.predict(imgs, batch_size=16)
+codes = np.vstack([encoded_imgs.mean(axis=0)]*10)
+np.fill_diagonal(codes, encoded_imgs.max(axis=0))
+
+decoded_features = s_decoder.predict(codes, batch_size=16)
+plot_digits(imgs, decoded_features)
+
+sys.exit()
 c_encoder, c_decoder, c_autoencoder = create_deeper_dense_ae()
 
 # Compilation in this case is the construction of a backpropagation calculation graph
@@ -145,7 +190,7 @@ c_autoencoder.summary()
 c_noiser, c_denoiser_model = create_denoising_model(c_autoencoder)
 c_denoiser_model.compile(optimizer='adam', loss='binary_crossentropy')
 c_denoiser_model.fit(x_train, x_train,
-                     epochs=10,
+                     epochs=40,
                      batch_size=batch_size,
                      shuffle=True,
                      validation_data=(x_test, x_test))
