@@ -167,7 +167,7 @@ else:
     x_train = np.reshape(x_train, (len(x_train), 28, 28, 1))
     x_test = np.reshape(x_test, (len(x_test), 28, 28, 1))
 
-    c_encoder, c_decoder, c_autoencoder = deep_sparse_ae()
+    c_encoder, c_decoder, c_autoencoder = deep_sparse_ae(0.0005)
 
     c_autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
     c_autoencoder.fit(x_train, x_train, epochs=50, batch_size=256, shuffle=True,
@@ -178,6 +178,10 @@ else:
 
     plot_digits(imgs, decoded_imgs)
 
+    # Joint distribution of latent variables P(Z_1, Z_3)
+    codes = c_encoder.predict(x_test)
+    sns.jointplot(codes[:, 1], codes[:, 3])
+    plt.show()
     sys.exit()
     # Homotopy between first two 8
     frm, to = x_test[y_test == 8][1:3]
