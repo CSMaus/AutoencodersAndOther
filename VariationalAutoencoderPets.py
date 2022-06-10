@@ -1,4 +1,6 @@
 # NOW IT WORKS ONLY WITH KERAS V 2.4.0
+import pathlib
+
 import keras.optimizers
 import numpy as np, os
 import matplotlib.pyplot as plt
@@ -8,17 +10,14 @@ from keras.datasets import mnist
 from keras.layers import Input, Dense, BatchNormalization, Dropout, Flatten, Reshape, Lambda
 from keras.models import Model
 
-# from keras.losses import binary_crossentropy
-# from tensorflow.python.keras.losses import binary_crossentropy
-# from tensorflow.python.keras.metrics import binary_crossentropy
-import tensorflow as tf
+from keras.metrics.metrics import binary_crossentropy
 # from keras.objectives import binary_crossentropy
-from keras.objectives import binary_crossentropy
-# from keras.objectives import binary_crossentropy
-# from keras.metrics import binary_crossentropy
-# from keras.layers.advanced_activations import LeakyReLU
 from keras.layers import LeakyReLU
 from keras import backend as bk
+import tensorflow as tf
+
+import parameters as p
+from keras.layers import Rescaling, Reshape, Resizing, RandomZoom, RandomRotation, RandomFlip
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -41,25 +40,141 @@ ax.set_xlim(-2, 2)
 ax.set_ylim(-2, 2)
 # plt.show()
 
-# VAE itself
-
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
-x_train = x_train.astype('float32') / 255.
-x_test = x_test.astype('float32') / 255.
-x_train = np.reshape(x_train, (len(x_train), 28, 28, 1))
-x_test = np.reshape(x_test, (len(x_test), 28, 28, 1))
-
+# PARAMETERS
 batch_size = 500
 latent_dim = 55  # to be easier generate and visualize result
 dropout_r = 0.3
 lr_0 = 0.0001
 epoch = 50
 
-name = f'mnist_dim{latent_dim}_epochs{epoch}'
+img_height = p.img_size
+img_width = p.img_size
 
+name = f'mnist_dim{latent_dim}_epochs{epoch}'
 Adam = keras.optimizers.Adam
-# Adam = keras.optimizers.adam
-# RMSprop = keras.optimizers.rmsprop
+
+# VAE itself
+
+# my data
+tf.debugging.set_log_device_placement(True)
+list_gpu = tf.config.experimental.list_physical_devices(device_type='GPU')
+for gpu in list_gpu:
+    tf.config.experimental.set_memory_growth(gpu, True)
+
+if not p.mnist_d:
+    ims = p.img_size
+else:
+    ims = 28
+
+data_dir = 'D:/DataSets/DataSet37/'
+data_dir = pathlib.Path(data_dir)
+image_count = len(list(data_dir.glob('*/*.jpg')))
+print('Number of images:', image_count)
+
+image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1 / 255, validation_split=0.2)
+
+train_ds = image_generator.flow_from_directory(
+    batch_size=32,
+    directory=data_dir,
+    shuffle=True,
+    target_size=(ims, ims),
+    subset="training")
+
+valid_ds = image_generator.flow_from_directory(
+    batch_size=32,
+    directory=data_dir,
+    shuffle=True,
+    target_size=(ims, ims),
+    subset="validation")
+
+'''train_ds = tf.keras.utils.image_dataset_from_directory(
+    data_dir,
+    validation_split=0.2,
+    subset="training",
+    seed=42,
+    batch_size=batch_size,
+    image_size=(img_height, img_width))
+
+valid_ds = tf.keras.preprocessing.image_dataset_from_directory(
+    data_dir,
+    validation_split=0.2,
+    subset="validation",
+    seed=42,
+    batch_size=batch_size,
+    image_size=(img_height, img_width))'''
+
+print(type(train_ds), np.shape(train_ds))
+sys.exit()
+class_names = train_ds.class_names
+num_classes = len(class_names)
+print(num_classes, class_names)
+
+# Check images and labels
+plt.figure(figsize=(10, 10))
+for images, labels in train_ds.take(5):
+    for i in range(6):
+        ax = plt.subplot(4, 3, i + 1)
+        plt.imshow(images[i].numpy().astype("uint8"))
+        plt.title(class_names[labels[i]])
+        plt.axis("off")
+for image_batch, labels_batch in train_ds:
+    print(image_batch.shape)
+    print(labels_batch.shape)
+    break
+
+data_augmentation = tf.keras.models.Sequential([
+    RandomFlip("horizontal", input_shape=(img_height, img_width, 3)),
+    RandomRotation(0.1),
+    RandomZoom(0.25)])
+
+# normalization_layer = Rescaling(1. / 255)
+# normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+
+
+# Configure the dataset for performance
+AUTOTUNE = tf.data.AUTOTUNE
+train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
+valid_ds = valid_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
+
+# Image normalization
+# normalization_layer = layers.experimental.preprocessing.Rescaling(1. / 255)
+# normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+# image_batch, labels_batch = next(iter(normalized_ds))
+# first_image = image_batch[0]
+
+# train_ds = tf.data.Dataset.from_tensor_slices(normalized_ds).shuffle(1000).batch(batch_size, drop_remainder=True)
+# valid_ds = tf.data.Dataset.from_tensor_slices(valid_ds).shuffle(1000).batch(batch_size, drop_remainder=True)
+#
+# train_ds = np.reshape(train_ds, (len(train_ds), ims, ims, 3))
+# valid_ds = np.reshape(valid_ds, (len(valid_ds), ims, ims, 3))
+
+
+# #########################____MNIST DATA____##################################
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train = x_train.astype('float32') / 255.
+x_test = x_test.astype('float32') / 255.
+x_train = np.reshape(x_train, (len(x_train), 28, 28, 1))
+x_test = np.reshape(x_test, (len(x_test), 28, 28, 1))
+
+
+# train_ds = tf.data.Dataset.unbatch(train_ds)
+# train_ds = Reshape((len(train_ds), ims, ims, 3))
+
+def fix_data(x):
+    # x = x.astype(('float32', 'float32'))
+    x = tf.convert_to_tensor(x, dtype=tf.float32)
+    ds = tf.data.Dataset.from_tensor_slices(x)
+    ds = ds.cache()
+    ds = ds.shuffle(1000, reshuffle_each_iteration=True)
+    ds = ds.repeat()
+    ds = ds.batch(batch_size=batch_size, drop_remainder=True)
+    return ds
+
+
+# train_ds = fix_data(train_ds)
+# print(type(x_train), np.shape(x_train))
+# print(type(train_ds), np.shape(train_ds))
+# sys.exit()
 
 
 def create_vae():
@@ -69,8 +184,13 @@ def create_vae():
         return Dropout(dropout_r)(BatchNormalization()(x))
 
     # Encoder
-    input_img = Input(batch_shape=(batch_size, 28, 28, 1))
-    x = Flatten()(input_img)
+    input_img = Input(batch_shape=(batch_size, ims, ims, 3))
+    if not p.mnist_d:
+        # x = data_augmentation(input_img)
+        x = Rescaling(1. / 255)(input_img)
+        x = Flatten()(x)
+    else:
+        x = Flatten()(input_img)
     x = Dense(256, activation='relu')(x)
     x = apply_bn_and_dropout(x)
     x = Dense(128, activation='relu')(x)
@@ -101,8 +221,8 @@ def create_vae():
     x = Dense(256)(x)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
-    x = Dense(28 * 28, activation='sigmoid')(x)
-    decoded = Reshape((28, 28, 1))(x)
+    x = Dense(ims * ims, activation='sigmoid')(x)
+    decoded = Reshape((ims, ims, 3))(x)
 
     decoder = Model(z, decoded, name='my_decoder')
 
@@ -113,18 +233,18 @@ def create_vae():
     models["vae"] = my_vae
 
     def vae_loss(x1, decoded1):
-        x1 = bk.reshape(x1, shape=(batch_size, 28 * 28))
-        decoded1 = bk.reshape(decoded1, shape=(batch_size, 28 * 28))
-        xent_loss = 28 * 28 * binary_crossentropy(x1, decoded1)
+        x1 = bk.reshape(x1, shape=(batch_size, ims * ims))
+        decoded1 = bk.reshape(decoded1, shape=(batch_size, ims * ims))
+        xent_loss = ims * ims * binary_crossentropy(x1, decoded1)
         bkl_loss = -0.5 * bk.sum(1 + z_log_var - bk.square(z_mean) - bk.exp(z_log_var), axis=-1)
-        return (xent_loss + bkl_loss) / 2 / 28 / 28
+        return (xent_loss + bkl_loss) / 2 / ims / ims
 
     return models, vae_loss
 
 
 from tensorflow.python.framework.ops import disable_eager_execution
-disable_eager_execution()
 
+disable_eager_execution()
 
 vae_models, vae_losses = create_vae()
 vae = vae_models["vae"]
@@ -192,6 +312,7 @@ def draw_manifold(generator, show=True):
 
 from IPython.display import clear_output
 from keras.callbacks import LambdaCallback, ReduceLROnPlateau, TensorBoard
+
 # from tensorflow.keras.callbacks import LambdaCallback
 # Arrays in which we will save the results for subsequent visualization
 figs = []
@@ -204,7 +325,7 @@ save_epochs = set(list((np.arange(0, 59) ** 1.701).astype(int)) + list(range(10)
 # print(type(save_epochs))
 # sys.exit()
 # We'll be tracking on these numbers
-imgs = x_test[:batch_size]
+imgs = train_ds[:batch_size]
 n_compare = 10
 
 # Models
@@ -227,7 +348,7 @@ def on_epoch_end(epoch, logs):
         # Save variety and z distribution to create animation after
         epochs.append(epoch)
         figs.append(figure)
-        latent_distrs.append(encoder_mean.predict(x_test, batch_size))
+        latent_distrs.append(encoder_mean.predict(valid_ds, batch_size))
 
 
 # Callback
@@ -238,9 +359,9 @@ lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
 tb = TensorBoard(log_dir=f'logs/{name}')
 
 # Run training
-vae.fit(x_train, x_train, shuffle=True, epochs=epoch,
+vae.fit(train_ds, train_ds, shuffle=True, epochs=epoch,
         batch_size=batch_size,
-        validation_data=(x_test, x_test),
+        validation_data=(valid_ds, valid_ds),
         callbacks=[tb],
         verbose=1)
 
