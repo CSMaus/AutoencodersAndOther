@@ -42,7 +42,7 @@ ax.set_ylim(-2, 2)
 
 # PARAMETERS
 batch_size = 500
-latent_dim = 55  # to be easier generate and visualize result
+latent_dim = 64  # to be easier generate and visualize result
 dropout_r = 0.3
 lr_0 = 0.0001
 epoch = 50
@@ -66,15 +66,15 @@ if not p.mnist_d:
 else:
     ims = 28
 
-data_dir = 'D:/DataSets/DataSet37/'
+data_dir = 'D:/DataSets/class2/'
 data_dir = pathlib.Path(data_dir)
 image_count = len(list(data_dir.glob('*/*.jpg')))
 print('Number of images:', image_count)
 
-image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1 / 255, validation_split=0.2)
+image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1./255, validation_split=0.2)
 
-train_ds = image_generator.flow_from_directory(
-    batch_size=32,
+'''train_ds = image_generator.flow_from_directory(
+    batch_size=batch_size,
     directory=data_dir,
     shuffle=True,
     target_size=(ims, ims),
@@ -82,12 +82,12 @@ train_ds = image_generator.flow_from_directory(
 
 valid_ds = image_generator.flow_from_directory(
     batch_size=32,
-    directory=data_dir,
+    directory=batch_size,
     shuffle=True,
     target_size=(ims, ims),
-    subset="validation")
+    subset="validation")'''
 
-'''train_ds = tf.keras.utils.image_dataset_from_directory(
+train_ds = tf.keras.utils.image_dataset_from_directory(
     data_dir,
     validation_split=0.2,
     subset="training",
@@ -95,16 +95,16 @@ valid_ds = image_generator.flow_from_directory(
     batch_size=batch_size,
     image_size=(img_height, img_width))
 
-valid_ds = tf.keras.preprocessing.image_dataset_from_directory(
+valid_ds = tf.keras.utils.image_dataset_from_directory(
     data_dir,
     validation_split=0.2,
     subset="validation",
     seed=42,
     batch_size=batch_size,
-    image_size=(img_height, img_width))'''
+    image_size=(img_height, img_width))
 
-print(type(train_ds), np.shape(train_ds))
-sys.exit()
+# train_ds = tf.convert_to_tensor(train_ds)
+# sys.exit()
 class_names = train_ds.class_names
 num_classes = len(class_names)
 print(num_classes, class_names)
@@ -136,9 +136,12 @@ AUTOTUNE = tf.data.AUTOTUNE
 train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 valid_ds = valid_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 
+print('type, shape', np.shape(train_ds))
+# sys.exit()
+
 # Image normalization
-# normalization_layer = layers.experimental.preprocessing.Rescaling(1. / 255)
-# normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+normalization_layer = Rescaling(1. / 255)
+train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
 # image_batch, labels_batch = next(iter(normalized_ds))
 # first_image = image_batch[0]
 
@@ -184,13 +187,13 @@ def create_vae():
         return Dropout(dropout_r)(BatchNormalization()(x))
 
     # Encoder
-    input_img = Input(batch_shape=(batch_size, ims, ims, 3))
-    if not p.mnist_d:
-        # x = data_augmentation(input_img)
-        x = Rescaling(1. / 255)(input_img)
-        x = Flatten()(x)
-    else:
-        x = Flatten()(input_img)
+    input_img = Input(shape=(ims, ims, 3))  # batch_shape=(batch_size, ims, ims, 3)
+    # if not p.mnist_d:
+    #     # x = data_augmentation(input_img)
+    #     x = Rescaling(1. / 255)(input_img)
+    #     x = Flatten()(x)
+    # else:
+    x = Flatten()(input_img)
     x = Dense(256, activation='relu')(x)
     x = apply_bn_and_dropout(x)
     x = Dense(128, activation='relu')(x)
@@ -221,7 +224,7 @@ def create_vae():
     x = Dense(256)(x)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
-    x = Dense(ims * ims, activation='sigmoid')(x)
+    x = Dense(ims * ims * 3, activation='sigmoid')(x)
     decoded = Reshape((ims, ims, 3))(x)
 
     decoder = Model(z, decoded, name='my_decoder')
