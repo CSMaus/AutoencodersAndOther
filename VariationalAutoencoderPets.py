@@ -136,6 +136,8 @@ AUTOTUNE = tf.data.AUTOTUNE
 train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 valid_ds = valid_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 
+train_ds = tf.data.Dataset.from_tensor_slices(list(train_ds))
+
 print('type, shape', np.shape(train_ds))
 # sys.exit()
 
@@ -328,7 +330,7 @@ save_epochs = set(list((np.arange(0, 59) ** 1.701).astype(int)) + list(range(10)
 # print(type(save_epochs))
 # sys.exit()
 # We'll be tracking on these numbers
-imgs = train_ds[:batch_size]
+imgs = train_ds.unbatch().take(batch_size)  # [:batch_size]
 n_compare = 10
 
 # Models
