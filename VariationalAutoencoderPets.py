@@ -140,8 +140,8 @@ print('type, shape', np.shape(train_ds))
 # sys.exit()
 
 # Image normalization
-normalization_layer = Rescaling(1. / 255)
-train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+# normalization_layer = Rescaling(1. / 255)
+# normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
 # image_batch, labels_batch = next(iter(normalized_ds))
 # first_image = image_batch[0]
 
@@ -236,11 +236,11 @@ def create_vae():
     models["vae"] = my_vae
 
     def vae_loss(x1, decoded1):
-        x1 = bk.reshape(x1, shape=(batch_size, ims * ims))
-        decoded1 = bk.reshape(decoded1, shape=(batch_size, ims * ims))
-        xent_loss = ims * ims * binary_crossentropy(x1, decoded1)
+        x1 = bk.reshape(x1, shape=(batch_size, ims * ims * 3))
+        decoded1 = bk.reshape(decoded1, shape=(batch_size, ims * ims * 3))
+        xent_loss = ims * ims * 3 * binary_crossentropy(x1, decoded1)
         bkl_loss = -0.5 * bk.sum(1 + z_log_var - bk.square(z_mean) - bk.exp(z_log_var), axis=-1)
-        return (xent_loss + bkl_loss) / 2 / ims / ims
+        return (xent_loss + bkl_loss) / 2 / ims / ims / 3
 
     return models, vae_loss
 
