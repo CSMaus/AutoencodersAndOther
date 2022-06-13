@@ -13,7 +13,7 @@ from keras.models import Model
 # from tensorflow.python.keras.metrics import binary_crossentropy
 import tensorflow as tf
 # from keras.objectives import binary_crossentropy
-from keras.objectives import binary_crossentropy
+from keras.metrics.metrics import binary_crossentropy
 # from keras.objectives import binary_crossentropy
 # from keras.metrics import binary_crossentropy
 # from keras.layers.advanced_activations import LeakyReLU
@@ -44,13 +44,19 @@ ax.set_ylim(-2, 2)
 # VAE itself
 
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+# print(type(x_train))
+# print(np.shape(x_train))
+# sys.exit()
 x_train = x_train.astype('float32') / 255.
 x_test = x_test.astype('float32') / 255.
 x_train = np.reshape(x_train, (len(x_train), 28, 28, 1))
 x_test = np.reshape(x_test, (len(x_test), 28, 28, 1))
 
+print(np.shape(x_train))
+sys.exit()
 batch_size = 500
-latent_dim = 55  # to be easier generate and visualize result
+latent_dim = 64  # to be easier generate and visualize result
 dropout_r = 0.3
 lr_0 = 0.0001
 epoch = 50
