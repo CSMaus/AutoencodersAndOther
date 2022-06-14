@@ -42,7 +42,7 @@ ax.set_ylim(-2, 2)
 
 # PARAMETERS
 batch_size = 128
-latent_dim = 2  # to be easier generate and visualize result
+latent_dim = 10  # to be easier generate and visualize result
 dropout_r = 0.3
 lr_0 = 0.0001
 epoch = 10
@@ -78,24 +78,27 @@ else:
     batch_size = image_count // 2
 
 if p.use_flow:
-    image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255, validation_split=0.2)
+    if p.use_flow_from_directory:
+        image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255, validation_split=0.2)
 
-    train_ds = image_generator.flow_from_directory(
-        os.path.join(p.dataset_folder),
-        class_mode='input',
-        target_size=(ims, ims),
-        batch_size=batch_size,
-        subset="training"
-    )
-    valid_ds = image_generator.flow_from_directory(
-        os.path.join(p.dataset_folder),
-        class_mode='input',
-        target_size=(ims, ims),
-        batch_size=batch_size,
-        subset="validation"
-    )
+        train_ds = image_generator.flow_from_directory(
+            os.path.join(p.dataset_folder),
+            class_mode='input',
+            target_size=(ims, ims),
+            batch_size=batch_size,
+            subset="training"
+        )
+
+        valid_ds = image_generator.flow_from_directory(
+            os.path.join(p.dataset_folder),
+            class_mode=None,
+            target_size=(ims, ims),
+            batch_size=batch_size,
+            subset="validation"
+        )
+    else:
+        datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0/255, validation_split=0.2)
 else:
-
     train_ds = tf.keras.utils.image_dataset_from_directory(
         data_dir,
         validation_split=0.2,
@@ -114,8 +117,11 @@ else:
         batch_size=batch_size,
         image_size=(ims, ims, 3),
         label_mode=None
-    )
+    )\
 
+# print(len(train_ds))
+# print(len(valid_ds))
+# sys.exit()
 
 # class_names = train_ds.class_names
 # num_classes = len(class_names)
@@ -351,10 +357,29 @@ lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
 tb = TensorBoard(log_dir=f'logs/{name}')
 
 # Run training
-vae.fit(train_ds, shuffle=True, epochs=epoch,
-        validation_data=valid_ds,
-        callbacks=[tb],
-        verbose=1)
+
+if not p.use_flow_from_directory:
+    for e in range(epoch):
+        print('Epoch', e)
+        batches = 0
+        for x_batch, y_batch in datagen.flow(
+                os.path.join(p.dataset_folder),
+                class_mode='input',
+                target_size=(ims, ims),
+                color_mode='rgb',
+                batch_size=batch_size):
+            vae.fit(x_batch, y_batch)
+            batches += 1
+            if batches >= len(x_train) / batch_size:
+                # we need to break the loop by hand because
+                # the generator loops indefinitely
+                break
+
+else:
+    vae.fit(train_ds, shuffle=True, epochs=epoch,
+            validation_data=valid_ds,
+            callbacks=[tb],
+            verbose=1)
 
 # Comparison of real and decoded numbers
 # decoded = vae.predict(imgs, batch_size=batch_size)

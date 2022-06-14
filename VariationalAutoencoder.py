@@ -54,7 +54,7 @@ x_train = np.reshape(x_train, (len(x_train), 28, 28, 1))
 x_test = np.reshape(x_test, (len(x_test), 28, 28, 1))
 
 print(np.shape(x_train))
-sys.exit()
+# sys.exit()
 batch_size = 500
 latent_dim = 64  # to be easier generate and visualize result
 dropout_r = 0.3

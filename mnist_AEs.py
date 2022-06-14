@@ -163,12 +163,12 @@ def create_denoising_model(autoencoder):
     return noiser, denoiser_model
 
 
-s_encoder, s_decoder, s_autoencoder = create_sparse_ae()
+s_encoder, s_decoder, s_autoencoder = create_deeper_dense_ae()
 s_autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
 
-s_autoencoder.fit(x_train, x_train, epochs=10, batch_size=256, shuffle=True, validation_data=(x_test, x_test))
+s_autoencoder.fit(x_train, x_train, epochs=50, batch_size=256, shuffle=True, validation_data=(x_test, x_test))
 
-n = 10
+n = 5
 imgs = x_test[:n]
 encoded_imgs = s_encoder.predict(imgs, batch_size=16)
 codes = np.vstack([encoded_imgs.mean(axis=0)]*10)
@@ -178,6 +178,8 @@ decoded_features = s_decoder.predict(codes, batch_size=16)
 plot_digits(imgs, decoded_features)
 
 sys.exit()
+
+
 c_encoder, c_decoder, c_autoencoder = create_deeper_dense_ae()
 
 # Compilation in this case is the construction of a backpropagation calculation graph
