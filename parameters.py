@@ -7,6 +7,8 @@ use_flow_from_directory = True
 use_flow = True
 dataset_folder = 'D:/DataSets/dogs_cats/'
 
+img_as_gray = False
+
 # now batch size depends on number of image data
 batch_size = 100
 latent_dim = 256  # to be easier generate and visualize result
