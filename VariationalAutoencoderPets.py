@@ -41,8 +41,8 @@ ax.set_ylim(-2, 2)
 # plt.show()
 
 # PARAMETERS
-batch_size = 128
-latent_dim = 10  # to be easier generate and visualize result
+batch_size = 100
+latent_dim = 28  # to be easier generate and visualize result
 dropout_r = 0.3
 lr_0 = 0.0001
 epoch = 10
@@ -71,11 +71,14 @@ data_dir = p.dataset_folder
 data_dir = pathlib.Path(data_dir)
 image_count = len(list(data_dir.glob('*/*.jpg')))
 print('Number of images:', image_count)
-
+# sys.exit()
 if batch_size < image_count:
-    batch_size = batch_size
+    # batch_size = batch_size
+    batch_size = int(image_count * 0.05)
+    print(batch_size)
 else:
     batch_size = image_count // 2
+# sys.exit()
 
 if p.use_flow:
     if p.use_flow_from_directory:
@@ -86,15 +89,17 @@ if p.use_flow:
             class_mode='input',
             target_size=(ims, ims),
             batch_size=batch_size,
-            subset="training"
+            subset="training",
+            color_mode='rgb'
         )
 
         valid_ds = image_generator.flow_from_directory(
             os.path.join(p.dataset_folder),
-            class_mode=None,
+            class_mode='input',
             target_size=(ims, ims),
             batch_size=batch_size,
-            subset="validation"
+            subset="validation",
+            color_mode='rgb'
         )
     else:
         datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0/255, validation_split=0.2)
@@ -117,7 +122,7 @@ else:
         batch_size=batch_size,
         image_size=(ims, ims, 3),
         label_mode=None
-    )\
+    )
 
 # print(len(train_ds))
 # print(len(valid_ds))
@@ -182,7 +187,7 @@ def create_vae():
         return Dropout(dropout_r)(BatchNormalization()(x))
 
     # Encoder
-    input_img = Input(batch_shape=(batch_size, ims, ims, 3))  # batch_shape=(batch_size, ims, ims, 3)
+    input_img = Input(shape=(ims, ims, 3))  # batch_shape=(batch_size, ims, ims, 3)
     x = Flatten()(input_img)
     x = Dense(256, activation='relu')(x)
     x = apply_bn_and_dropout(x)
@@ -196,8 +201,8 @@ def create_vae():
     # sampling from Q with reparametrisation
     def sampling(args):
         z_meansа, z_log_varsа = args
-        epsilon = bk.random_normal(shape=(batch_size, latent_dim), mean=0., stddev=1.0)
-        return z_meansа + bk.exp(z_log_varsа / 2) * epsilon
+        epsilon = bk.random_normal(shape=(batch_size, latent_dim), mean=0., stddev=1.0)  #
+        return z_meansа + bk.exp(z_log_varsа) * epsilon
 
     l = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
 
@@ -242,8 +247,8 @@ disable_eager_execution()
 vae_models, vae_losses = create_vae()
 vae = vae_models["vae"]
 
-vae.compile(optimizer='adam', loss=vae_losses, experimental_run_tf_function=False)  # vae_losses
-
+# vae.compile(optimizer='adam', loss=vae_losses, experimental_run_tf_function=False)  # vae_losses
+vae.compile(optimizer='adam', loss='binary_crossentropy')
 # Plot images / digits
 if p.mnist_d:
     digit_size = 28
@@ -382,9 +387,8 @@ else:
             verbose=1)
 
 # Comparison of real and decoded numbers
-# decoded = vae.predict(imgs, batch_size=batch_size)
-# plot_digits(imgs[:n_compare], decoded[:n_compare])
-#
-# # Manifold drawing
-# figure = draw_manifold(generator, show=True)
-#
+decoded = vae.predict(imgs, batch_size=batch_size)
+plot_digits(imgs[:n_compare], decoded[:n_compare])
+
+# Manifold drawing
+figure = draw_manifold(generator, show=True)
