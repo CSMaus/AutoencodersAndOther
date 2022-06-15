@@ -58,8 +58,8 @@ for gpu in list_gpu:
     tf.config.experimental.set_memory_growth(gpu, True)
 
 if not p.mnist_d:
-    name = f'pets_dim{latent_dim}_epochs{epoch}'
     ims = p.img_size
+    name = f'pets_dim{latent_dim}_epochs{epoch}_ims_{ims}'
 else:
     name = f'mnist_dim{latent_dim}_epochs{epoch}'
     ims = 28
@@ -188,6 +188,8 @@ def create_vae():
     # Encoder
     input_img = Input(shape=(ims, ims, 3))  # batch_shape=(batch_size, ims, ims, 3)
     x = Flatten()(input_img)
+    x = Dense(512, activation='relu')(x)
+    x = apply_bn_and_dropout(x)
     x = Dense(256, activation='relu')(x)
     x = apply_bn_and_dropout(x)
     x = Dense(128, activation='relu')(x)
@@ -216,6 +218,9 @@ def create_vae():
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
     x = Dense(256)(x)
+    x = LeakyReLU()(x)
+    x = apply_bn_and_dropout(x)
+    x = Dense(512)(x)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
     x = Dense(ims * ims * 3, activation='sigmoid')(x)
@@ -364,7 +369,7 @@ save_epochs = set(list((np.arange(0, 59) ** 1.701).astype(int)) + list(range(10)
 # sys.exit()
 # We'll be tracking on these numbers
 
-n_compare = 10
+n_compare = 5
 
 # Models
 generator = vae_models["decoder"]
