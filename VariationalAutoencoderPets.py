@@ -1,12 +1,9 @@
 # NOW IT WORKS ONLY WITH KERAS V 2.4.0
 import pathlib
-
-import keras.optimizers
 import numpy as np, os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import sys
-from keras.datasets import mnist
 from keras.layers import Input, Dense, BatchNormalization, Dropout, Flatten, Reshape, Lambda
 from keras.models import Model
 
@@ -21,6 +18,7 @@ from keras.layers import Rescaling, Reshape, Resizing, RandomZoom, RandomRotatio
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+'''
 # change (random) normal distribution to other random distribution
 Z = np.random.randn(150, 2)
 X = Z / (np.sqrt(np.sum(Z * Z, axis=1))[:, None]) + Z / 10
@@ -39,18 +37,17 @@ ax.grid(True)
 ax.set_xlim(-2, 2)
 ax.set_ylim(-2, 2)
 # plt.show()
+'''
 
 # PARAMETERS
-batch_size = 100
-latent_dim = 28  # to be easier generate and visualize result
-dropout_r = 0.3
-lr_0 = 0.0001
-epoch = 10
+batch_size = p.batch_size
+latent_dim = p.latent_dim  # to be easier generate and visualize result
+dropout_r = p.dropout_r
+lr_0 = p.lr_0
+epoch = p.epoch
 
 img_height = p.img_size
 img_width = p.img_size
-
-Adam = keras.optimizers.Adam
 
 # VAE itself
 
@@ -83,6 +80,7 @@ else:
 if p.use_flow:
     if p.use_flow_from_directory:
         image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255, validation_split=0.2)
+        image_generator2 = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255, validation_split=0.05)
 
         train_ds = image_generator.flow_from_directory(
             os.path.join(p.dataset_folder),
@@ -101,6 +99,7 @@ if p.use_flow:
             subset="validation",
             color_mode='rgb'
         )
+
     else:
         datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0/255, validation_split=0.2)
 else:
@@ -162,7 +161,7 @@ data_augmentation = tf.keras.models.Sequential([
 
 # #########################____MNIST DATA____##################################
 if p.mnist_d:
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
     x_train = x_train.astype('float32') / 255.
     x_test = x_test.astype('float32') / 255.
     x_train = np.reshape(x_train, (len(x_train), 28, 28, 1))
@@ -240,15 +239,53 @@ def create_vae():
     return models, vae_loss
 
 
-from tensorflow.python.framework.ops import disable_eager_execution
+datadir = 'D:/DataSets/dogs_cats/'
+train_ds2 = tf.keras.utils.image_dataset_from_directory(
+    datadir,
+    validation_split=0.2,
+    subset="training",
+    seed=123,
+    image_size=(img_height, img_width),
+    batch_size=batch_size)
 
+val_ds = tf.keras.utils.image_dataset_from_directory(
+    datadir,
+    validation_split=0.05,
+    subset="validation",
+    seed=123,
+    image_size=(img_height, img_width),
+    batch_size=batch_size)
+
+class_names = train_ds2.class_names
+print(class_names)
+
+plt.figure(figsize=(10, 10))
+for images, labels in train_ds2.take(1):
+    for i in range(9):
+        ax = plt.subplot(3, 3, i + 1)
+        plt.imshow(images[i].numpy().astype("uint8"))
+        plt.title(class_names[labels[i]])
+        plt.axis("off")
+
+# plt.show()
+print(type(images))
+print(images.shape)
+print(type(images.numpy()))
+images = images.numpy().astype("float32")
+
+images = images/255.
+# images = images.astype("uint8")
+# sys.exit()
+
+
+from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
 disable_eager_execution()
-
 vae_models, vae_losses = create_vae()
 vae = vae_models["vae"]
 
+
 # vae.compile(optimizer='adam', loss=vae_losses, experimental_run_tf_function=False)  # vae_losses
-vae.compile(optimizer='adam', loss='binary_crossentropy')
+vae.compile(optimizer='adam', loss=vae_losses)
 # Plot images / digits
 if p.mnist_d:
     digit_size = 28
@@ -333,8 +370,11 @@ n_compare = 10
 generator = vae_models["decoder"]
 encoder_mean = vae_models["z_meaner"]
 
+# print(type(valid_ds))
+# print(len(valid_ds))
+# sys.exit()
+# imgs = valid_ds[:batch_size]  # [:batch_size] or .unbatch().take(batch_size) doesnt work
 '''
-imgs = valid_ds.unbatch().take(batch_size)  # [:batch_size]
 # imgs = valid_ds[:batch_size]
 # The function that we will run after each epoch
 def on_epoch_end(epoch, logs):
@@ -362,7 +402,7 @@ lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
 tb = TensorBoard(log_dir=f'logs/{name}')
 
 # Run training
-
+# sys.exit()
 if not p.use_flow_from_directory:
     for e in range(epoch):
         print('Epoch', e)
@@ -386,9 +426,19 @@ else:
             callbacks=[tb],
             verbose=1)
 
-# Comparison of real and decoded numbers
-decoded = vae.predict(imgs, batch_size=batch_size)
-plot_digits(imgs[:n_compare], decoded[:n_compare])
 
+# enable_eager_execution()
+decoded = vae.predict(images, batch_size=batch_size, steps=1)  # , steps=1
+# plot_digits(image, decoded)
+plot_digits(images[:n_compare], decoded[:n_compare])
 # Manifold drawing
 figure = draw_manifold(generator, show=True)
+
+# Comparison of real and decoded numbers
+# decoded = vae.predict(imgs, batch_size=batch_size)
+# plot_digits(imgs[:n_compare], decoded[:n_compare])
+# decoded = vae.predict(valid_ds)
+# plot_digits(valid_ds, decoded)
+#
+# # Manifold drawing
+# figure = draw_manifold(generator, show=True)

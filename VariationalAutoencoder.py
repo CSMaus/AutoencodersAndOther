@@ -59,7 +59,7 @@ batch_size = 500
 latent_dim = 64  # to be easier generate and visualize result
 dropout_r = 0.3
 lr_0 = 0.0001
-epoch = 50
+epoch = 10
 
 name = f'mnist_dim{latent_dim}_epochs{epoch}'
 
@@ -251,6 +251,8 @@ vae.fit(x_train, x_train, shuffle=True, epochs=epoch,
         verbose=1)
 
 # Comparison of real and decoded numbers
+print(type(imgs))
+print(imgs.shape)
 decoded = vae.predict(imgs, batch_size=batch_size)
 plot_digits(imgs[:n_compare], decoded[:n_compare])
 
