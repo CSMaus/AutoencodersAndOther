@@ -27,7 +27,6 @@ if p.split_data:
     for category in path_list:
         imgs = os.listdir(os.path.join(datas_folder, category))
         num_imgs = len(imgs)
-        print(f'\nTotal number of images in category {category}:', num_imgs)
 
         i = 0
         for img in tqdm(imgs):
@@ -49,6 +48,7 @@ if p.split_data:
                     shutil.copyfile(f'{datas_folder}/{category}/{img}', f'{destin}/{img}')
             # break
 
+        print(f'\nTotal number of images in category {category}:', num_imgs, '\n')
 
 
 

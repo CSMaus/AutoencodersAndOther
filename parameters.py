@@ -8,7 +8,7 @@ img_as_gray = False
 
 
 # ############### data settings: type of data, folder, library, etc ###############
-dataset_folder = 'D:/DataSets/dogs_cats'
+dataset_folder = 'D:/DataSets/splitted/dogs_cats'
 dataset_ToSplit_folder = 'D:/DataSets/dogs_cats'
 destin_splitted_folder = 'D:/DataSets/splitted/dogs_cats'
 
