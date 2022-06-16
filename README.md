@@ -26,7 +26,7 @@ First one uses mnist dataset.<br>
 Second one is attempt to load pets data and see how the output will look like.<br>
 Now the output looks like this:<br>
 ![input_output_50ep_ims112_simpleVAE](https://user-images.githubusercontent.com/60517813/174012570-e5188dfb-c5c1-493e-b257-1775961837c4.jpg)
-Here VAE is very simple, so it cannt give good output.
+<br>Here VAE is very simple, so it cannt give good output.
 
 ### Further
 I have plans to test different data preprocessing methods, write more complicated NN for encoder and decoder in AE to improve quality of output data. 
