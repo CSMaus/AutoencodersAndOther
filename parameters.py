@@ -21,9 +21,9 @@ validation_split = 0.2
 test_split = 0.1
 
 mnist_d = False
-use_flow_from_directory = True
-use_flow = True
-
+use_flow_from_directory = False
+use_flow = False
+use_my_pd = True  # using my preprocessing data algorithm
 
 # ##################### training parameters for models ############################
 batch_size = 100

@@ -213,9 +213,7 @@ epochs = []
 
 # Saves epoches
 save_epochs = set(list((np.arange(0, 59) ** 1.701).astype(int)) + list(range(10)))
-# print(save_epochs)
-# print(type(save_epochs))
-# sys.exit()
+
 # We'll be tracking on these numbers
 imgs = x_test[:batch_size]
 n_compare = 10
