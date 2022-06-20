@@ -9,6 +9,7 @@ __pycache__/
 # Folders
 *.idea/
 *logs/
+*.vscode/
 *VariationalAutoencoder2.py
 
 # Distribution / packaging
