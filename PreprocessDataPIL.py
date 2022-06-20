@@ -1,7 +1,7 @@
 import numpy as np, sys, os, matplotlib as plt
 import parameters as p
 from tqdm import tqdm
-import cv2
+from PIL import Image
 from copy import copy
 from random import randint
 
@@ -51,28 +51,26 @@ def fill_ds_from_splitted_folders(
         for img in tqdm(os.listdir(os.path.join(category_folder))):
             # try:
             if color_rgb:
-                img_arr = cv2.imread(os.path.join(category_folder, img), cv2.COLOR_BGR2RGB)  # cv2.COLOR_BGR2RGB
-                # print(type(img_arr))
-                img_arr = cv2.resize(img_arr, img_shape, interpolation=cv2.INTER_AREA)
+                img_arr = np.array(Image.open(os.path.join(category_folder, img)).convert('RGB').resize((img_width, img_height), Image.ANTIALIAS))
                 out_ds.append(img_arr)
-                # print(type(out_ds))
             else:
-                img_arr = cv2.imread(os.path.join(category_folder, img), cv2.IMREAD_GRAYSCALE)
-                img_arr = cv2.resize(img_arr, img_shape, interpolation=cv2.INTER_AREA)
+                img_arr = Image.open(os.path.join(category_folder, img)).convert('L')
+                img_arr = img_arr.resize([img_width, img_height])
+                out_ds.append(np.array(img_arr))
                 img_arr = np.expand_dims(img_arr, axis=2)
                 out_ds.append(img_arr)
 
-            if flip_y:
-                flipped_y = copy(cv2.flip(img_arr, 1))
-                flipped_y = np.expand_dims(flipped_y, axis=2)
-                if not color_rgb:
-                    out_ds.append(flipped_y)
+            # if flip_y:
+                # flipped_y = copy(cv2.flip(img_arr, 1))
+                # flipped_y = np.expand_dims(flipped_y, axis=2)
+                # if not color_rgb:
+                #     out_ds.append(flipped_y)
 
-            if flip_x:
-                flipped_x = copy(cv2.flip(img_arr, 0))
-                flipped_x = np.expand_dims(flipped_x, axis=2)
-                if not color_rgb:
-                    out_ds.append(flipped_x)
+            # if flip_x:
+                # flipped_x = copy(cv2.flip(img_arr, 0))
+                # flipped_x = np.expand_dims(flipped_x, axis=2)
+                # if not color_rgb:
+                #     out_ds.append(flipped_x)
 
             # except:
             #     pass
@@ -85,8 +83,8 @@ def fill_ds_from_splitted_folders(
             # print('len(out_ds)', len(out_ds))
             # break
         # break
-    print(np.shape(out_ds))
-    return out_ds
+    # print(np.shape(out_ds))
+    return np.array(out_ds)
 
 
 # remove elements to make it possible to split the array into 100 batches
@@ -119,10 +117,11 @@ def do_prepare(
 
 
 try_test_ds = fill_ds_from_splitted_folders(data_dir, ds_type='train')
+# try_test_ds = np.array(try_test_ds)
 
 # x = try_test_ds[0]
-# print(np.shape(x))
-# print(type(x))
+print(np.shape(try_test_ds))
+print(type(try_test_ds))
 
 sys.exit()
 try_test_ds = np.delete(try_test_ds, randint(0, np.shape(try_test_ds)[0] - 2), 0)

@@ -8,7 +8,7 @@ img_as_gray = False
 
 
 # ############### data settings: type of data, folder, library, etc ###############
-dataset_folder = 'D:/DataSets/splitted/dogs_cats'
+dataset_folder = 'D:/DataSets/dogs_cats'
 dataset_ToSplit_folder = 'D:/DataSets/dogs_cats'
 destin_splitted_folder = 'D:/DataSets/splitted/dogs_cats'
 
@@ -21,14 +21,14 @@ validation_split = 0.2
 test_split = 0.1
 
 mnist_d = False
-use_flow_from_directory = False
-use_flow = False
-use_my_pd = True  # using my preprocessing data algorithm
+use_flow_from_directory = True
+use_flow = True
+use_my_pd = False  # using my preprocessing data algorithm
 
 # ##################### training parameters for models ############################
 batch_size = 100
 latent_dim = 256  # to be easier generate and visualize result
 dropout_r = 0.3
 lr_0 = 0.0001
-epoch = 50
+epoch = 5
 

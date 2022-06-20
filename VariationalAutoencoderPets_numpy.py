@@ -1,12 +1,9 @@
 # NOW IT WORKS ONLY WITH KERAS V 2.4.0
-import pathlib
-import numpy as np, os
-import matplotlib.pyplot as plt
-import seaborn as sns
-import sys
+import pathlib, numpy as np, os, sys, matplotlib.pyplot as plt, seaborn as sns
+from PIL import Image
 from keras.layers import Input, Dense, BatchNormalization, Dropout, Flatten, Reshape, Lambda
+from keras.layers import Rescaling, Reshape, Resizing, RandomZoom, RandomRotation, RandomFlip
 from keras.models import Model
-
 from keras.metrics.metrics import binary_crossentropy
 # from keras.objectives import binary_crossentropy
 from keras.layers import LeakyReLU
@@ -14,7 +11,6 @@ from keras import backend as bk
 import tensorflow as tf
 
 import parameters as p
-from keras.layers import Rescaling, Reshape, Resizing, RandomZoom, RandomRotation, RandomFlip
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -69,13 +65,110 @@ data_dir = pathlib.Path(data_dir)
 image_count = len(list(data_dir.glob('*/*.jpg')))
 print('Number of images:', image_count)
 # sys.exit()
-if batch_size < image_count:
-    # batch_size = batch_size
-    batch_size = int(image_count * 0.05)
-    print(batch_size)
-else:
-    batch_size = image_count // 2
+
+if image_count != 0:
+    if batch_size < image_count:
+        # batch_size = batch_size
+        batch_size = int(image_count * 0.05)
+        print(batch_size)
+    else:
+        batch_size = image_count // 2
+
 # sys.exit()
+
+
+# ########################## IMAGE DATA PREPROCESSING ############################
+# ########################## IMAGE DATA PREPROCESSING ############################
+if p.use_my_pd:
+    from tqdm import tqdm
+    from copy import copy
+    from random import randint
+    import cv2
+
+
+    def fill_ds_from_splitted_folders(
+            ds_folder,
+            subset,
+            img_w=224,
+            img_h=224,
+            color_rgb=True,
+            flip_y=False,
+            flip_x=False):
+        """
+        :param ds_folder: folder with train, validation and test datasets
+        :param subset: choose 'train', 'validation' or 'test'
+        :param img_h: image height to resize
+        :param img_w: image width to resize
+        :param color_rgb: color mode - if True then 3 color channels, else 1 color channel
+        :param flip_y: add image flipped around y
+        :param flip_x: add image flipped around x
+        :return: filled dataset of resized images
+        """
+        out_ds = []
+        categories = os.listdir((os.path.join(f'{ds_folder}/{subset}')))
+        num_categories = len(categories)
+
+        for category in categories:
+            category_folder = f'{ds_folder}/{subset}/{category}'
+            num_of_ims = len(os.listdir(os.path.join(category_folder)))
+
+            for img in tqdm(os.listdir(os.path.join(category_folder))):
+                try:
+                    if color_rgb:
+                        img_arr = np.array(Image.open(os.path.join(category_folder, img)).convert('RGB').resize(
+                            (img_width, img_height), Image.ANTIALIAS))
+                        out_ds.append(img_arr)
+                    else:
+                        img_arr = cv2.imread(os.path.join(category_folder, img), cv2.IMREAD_GRAYSCALE)
+                        img_arr = cv2.resize(img_arr, (img_w, img_h))
+                        out_ds.append(np.expand_dims(img_arr, axis=2))
+
+                    if flip_y:
+                        flipped_y = copy(cv2.flip(img_arr, 1))
+                        if not color_rgb:
+                            out_ds.append(np.expand_dims(flipped_y, axis=2))
+
+                    if flip_x:
+                        flipped_x = copy(cv2.flip(img_arr, 0))
+                        if not color_rgb:
+                            out_ds.append(np.expand_dims(flipped_x, axis=2))
+                except:
+                    pass
+
+        return np.asarray(out_ds, dtype='float32')
+
+
+    # remove elements to make it possible to split the array into 100 batches
+    def remove_equal_batches(arr, BS=100):
+        while np.shape(arr)[0] % BS != 0:
+            arr = np.delete(arr, randint(0, np.shape(arr)[0] - 2), 0)
+            # print(np.shape(arr)[0])
+        return arr
+
+
+    def do_prepare(
+            ds_folder,
+            subset,
+            batch_s,
+            img_w=224,
+            img_h=224,
+            color_rgb=True,
+            flip_y=False,
+            flip_x=False):
+        out_array = fill_ds_from_splitted_folders(
+            ds_folder,
+            subset,
+            img_w=img_w,
+            img_h=img_h,
+            color_rgb=color_rgb,
+            flip_y=flip_y,
+            flip_x=flip_x
+        )
+        return remove_equal_batches(out_array, batch_s)
+
+# ########################## IMAGE DATA PREPROCESSING ############################
+# ########################## IMAGE DATA PREPROCESSING ############################
+
 
 if p.use_flow:
     if p.use_flow_from_directory:
@@ -101,27 +194,53 @@ if p.use_flow:
         )
 
     else:
-        datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0/255, validation_split=0.2)
+        datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255, validation_split=0.2)
 else:
-    train_ds = tf.keras.utils.image_dataset_from_directory(
-        data_dir,
-        validation_split=0.2,
-        subset="training",
-        seed=42,
-        batch_size=batch_size,
-        image_size=(ims, ims, 3),
-        label_mode=None
-    )
+    if p.use_my_pd:
+        train_ds = do_prepare(
+            ds_folder=p.dataset_folder,
+            subset='train',
+            batch_s=batch_size,
+            color_rgb=True,
+            img_h=ims,
+            img_w=ims
+        )
+        valid_ds = do_prepare(
+            ds_folder=p.dataset_folder,
+            subset='validation',
+            batch_s=batch_size,
+            color_rgb=True,
+            img_h=ims,
+            img_w=ims
+        )
+        test_ds = do_prepare(
+            ds_folder=p.dataset_folder,
+            subset='test',
+            batch_s=batch_size,
+            color_rgb=True,
+            img_h=ims,
+            img_w=ims
+        )
+    else:
+        train_ds = tf.keras.utils.image_dataset_from_directory(
+            data_dir,
+            validation_split=0.2,
+            subset="training",
+            seed=42,
+            batch_size=batch_size,
+            image_size=(ims, ims, 3),
+            label_mode=None
+        )
 
-    valid_ds = tf.keras.utils.image_dataset_from_directory(
-        data_dir,
-        validation_split=0.2,
-        subset="validation",
-        seed=42,
-        batch_size=batch_size,
-        image_size=(ims, ims, 3),
-        label_mode=None
-    )
+        valid_ds = tf.keras.utils.image_dataset_from_directory(
+            data_dir,
+            validation_split=0.2,
+            subset="validation",
+            seed=42,
+            batch_size=batch_size,
+            image_size=(ims, ims, 3),
+            label_mode=None
+        )
 
 # print(len(train_ds))
 # print(len(valid_ds))
@@ -244,6 +363,7 @@ def create_vae():
     return models, vae_loss
 
 
+'''
 datadir = 'D:/DataSets/dogs_cats/'
 train_ds2 = tf.keras.utils.image_dataset_from_directory(
     datadir,
@@ -272,22 +392,15 @@ for images, labels in train_ds2.take(1):
         plt.title(class_names[labels[i]])
         plt.axis("off")
 
-# plt.show()
-print(type(images))
-print(images.shape)
-print(type(images.numpy()))
 images = images.numpy().astype("float32")
-
 images = images/255.
-# images = images.astype("uint8")
-# sys.exit()
-
+'''
 
 from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
+
 disable_eager_execution()
 vae_models, vae_losses = create_vae()
 vae = vae_models["vae"]
-
 
 # vae.compile(optimizer='adam', loss=vae_losses, experimental_run_tf_function=False)  # vae_losses
 vae.compile(optimizer='adam', loss=vae_losses)
@@ -364,22 +477,15 @@ epochs = []
 
 # Saves epoches
 save_epochs = set(list((np.arange(0, 59) ** 1.701).astype(int)) + list(range(10)))
-# print(save_epochs)
-# print(type(save_epochs))
-# sys.exit()
-# We'll be tracking on these numbers
 
+# We'll be tracking on these numbers
 n_compare = 5
 
 # Models
 generator = vae_models["decoder"]
 encoder_mean = vae_models["z_meaner"]
 
-# print(type(valid_ds))
-# print(len(valid_ds))
-# sys.exit()
-# imgs = valid_ds[:batch_size]  # [:batch_size] or .unbatch().take(batch_size) doesnt work
-'''
+
 # imgs = valid_ds[:batch_size]
 # The function that we will run after each epoch
 def on_epoch_end(epoch, logs):
@@ -401,7 +507,7 @@ def on_epoch_end(epoch, logs):
 
 # Callback
 lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
-'''
+
 
 # lr_red = ReduceLROnPlateau(factor=0.1, patience=25)
 tb = TensorBoard(log_dir=f'logs/{name}')
@@ -426,24 +532,26 @@ if not p.use_flow_from_directory:
                 break
 
 else:
-    vae.fit(train_ds, shuffle=True, epochs=epoch,
-            validation_data=valid_ds,
+    vae.fit(train_ds, train_ds, shuffle=True, epochs=epoch, batch_size=batch_size,
+            validation_data=(valid_ds, valid_ds),
             callbacks=[tb],
             verbose=1)
 
-
 # enable_eager_execution()
-decoded = vae.predict(images, batch_size=batch_size, steps=1)  # , steps=1
-# plot_digits(image, decoded)
-plot_digits(images[:n_compare], decoded[:n_compare])
-# Manifold drawing
-figure = draw_manifold(generator, show=True)
 
-# Comparison of real and decoded numbers
-# decoded = vae.predict(imgs, batch_size=batch_size)
-# plot_digits(imgs[:n_compare], decoded[:n_compare])
-# decoded = vae.predict(valid_ds)
-# plot_digits(valid_ds, decoded)
+if p.use_my_pd:
+    images = test_ds[:batch_size]  # [:batch_size] or .unbatch().take(batch_size) doesnt work
+    decoded = vae.predict(images, batch_size=batch_size, steps=1)  # , steps=1
+    # plot_digits(image, decoded)
+    plot_digits(images[:n_compare], decoded[:n_compare])
+    # Manifold drawing
+    figure = draw_manifold(generator, show=True)
+else:
+    # Comparison of real and decoded numbers
+    decoded = vae.predict(imgs, batch_size=batch_size)
+    plot_digits(imgs[:n_compare], decoded[:n_compare])
+    decoded = vae.predict(valid_ds)
+    plot_digits(valid_ds, decoded)
 #
 # # Manifold drawing
 # figure = draw_manifold(generator, show=True)
