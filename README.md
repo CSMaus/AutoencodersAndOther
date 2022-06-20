@@ -1,4 +1,5 @@
 ### Here autoencoders and data preprocessing for AEs
+### All scripts are in draft form. Here I'm just learning and posting my attempts to solve problems in different ways!
 
 # Data preprocessing scripts
 
