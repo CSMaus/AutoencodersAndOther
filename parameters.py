@@ -3,9 +3,10 @@ using_dot_generator = False
 
 # ################## datas parameters (img size, color, etc)  ######################
 n = 8
-img_size = 224
+img_size = 256
 img_as_gray = False
 
+vae = False
 
 # ############### data settings: type of data, folder, library, etc ###############
 dataset_folder = 'D:/DataSets/dogs_cats'
@@ -30,5 +31,5 @@ batch_size = 100
 latent_dim = 256  # to be easier generate and visualize result
 dropout_r = 0.3
 lr_0 = 0.0001
-epoch = 5
+epoch = 10
 
