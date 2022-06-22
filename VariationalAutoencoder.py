@@ -36,7 +36,8 @@ ax.set_xlim(-2, 2)
 ax.set_ylim(-2, 2)
 # plt.show()
 
-# VAE itself
+from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
+disable_eager_execution()
 
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
@@ -64,11 +65,13 @@ batch_size = 500
 latent_dim = 64  # to be easier generate and visualize result
 dropout_r = 0.3
 lr_0 = 0.0001
-epoch = 10
+epoch = p.epoch
 
 name = f'mnist_dim{latent_dim}_epochs{epoch}'
 
 Adam = keras.optimizers.Adam
+
+
 # Adam = keras.optimizers.adam
 # RMSprop = keras.optimizers.rmsprop
 
@@ -83,13 +86,13 @@ def create_cvae():
     # Encoder
     inp_img = Input(shape=(28, 28, 1))  # batch_shape=(batch_size, 28, 28, 1)
     flat = Flatten()(inp_img)
-    inp_lbls = Input(shape=(num_classes, ), dtype='float32')
+    inp_lbls = Input(shape=(num_classes,), dtype='float32')
 
     x = Concatenate()([flat, inp_lbls])
     x = Dense(256, activation='relu')(x)
     x = apply_bn_and_dropout(x)
-    x = Dense(128, activation='relu')(x)
-    x = apply_bn_and_dropout(x)
+    # x = Dense(128, activation='relu')(x)
+    # x = apply_bn_and_dropout(x)
 
     # predict logarithm of variation instead of standard deviation
     z_mean = Dense(latent_dim)(x)
@@ -103,6 +106,8 @@ def create_cvae():
 
     l = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
 
+    # z = Sampling()([z_mean, z_log_var])
+    # encoder = keras.Model(encoder_inputs, [z_mean, z_log_var, z], name="encoder")
     encoder = Model([inp_img, inp_lbls], l, name='my_encoder')
     z_meaner = Model([inp_img, inp_lbls], z_mean, name='Enc_z_mean')
     models["encoder"] = encoder
@@ -111,11 +116,11 @@ def create_cvae():
 
     # Decoder
     z = Input(shape=(latent_dim,))
-    inp_lbls_d = Input(shape=(num_classes, ), dtype='float32')
+    inp_lbls_d = Input(shape=(num_classes,), dtype='float32')
     x = Concatenate()([z, inp_lbls_d])
-    x = Dense(128)(x)
-    x = LeakyReLU()(x)
-    x = apply_bn_and_dropout(x)
+    # x = Dense(128)(x)
+    # x = LeakyReLU()(x)
+    # x = apply_bn_and_dropout(x)
     x = Dense(256)(x)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
@@ -132,25 +137,26 @@ def create_cvae():
     # models["vae"] = my_vae
 
     cvae_out = decoder([encoder([inp_img, inp_lbls]), inp_lbls_d])
+
     my_cvae = Model([inp_img, inp_lbls, inp_lbls_d], cvae_out, name='my_cvae')
     models['cvae'] = my_cvae
 
     out_style = decoder([z_meaner([inp_img, inp_lbls]), inp_lbls_d])
     models["style_t"] = Model([inp_img, inp_lbls, inp_lbls_d], out_style, name="style_transfer")
 
-    def vae_loss(x1, decoded1):
-        x1 = bk.reshape(x1, shape=(batch_size, 28 * 28))
-        decoded1 = bk.reshape(decoded1, shape=(batch_size, 28 * 28))
-        xent_loss = 28 * 28 * binary_crossentropy(x1, decoded1)
-        bkl_loss = -0.5 * bk.sum(1 + z_log_var - bk.square(z_mean) - bk.exp(z_log_var), axis=-1)
-        return (xent_loss + bkl_loss) / 2 / 28 / 28
+    def vae_loss(x, decoded):
+        x = bk.reshape(x, shape=(batch_size, 28 * 28))
+        decoded = bk.reshape(decoded, shape=(batch_size, 28 * 28))
+        xent_loss = 28 * 28 * binary_crossentropy(x, decoded)
+        kl_loss = -0.5 * bk.sum(1 + z_log_var - bk.square(z_mean) - bk.exp(z_log_var), axis=-1)
+        return (xent_loss + kl_loss)/2/28/28
 
     return models, vae_loss
 
 
 from tensorflow.python.framework.ops import disable_eager_execution
-disable_eager_execution()
 
+disable_eager_execution()
 
 cvae_models, cvae_losses = create_cvae()
 cvae = cvae_models["cvae"]
@@ -169,7 +175,7 @@ def plot_digits(*args, invert_colors=False):
     for i in range(n_f):
         for j in range(len(args)):
             figure[j * digit_size: (j + 1) * digit_size,
-                   i * digit_size: (i + 1) * digit_size] = args[j][i].squeeze()
+            i * digit_size: (i + 1) * digit_size] = args[j][i].squeeze()
 
     if invert_colors:
         figure = 1 - figure
@@ -191,7 +197,6 @@ from scipy.stats import norm
 # we take the grid of nodes in which we generate numbers from the inverse distribution function
 grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
 grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
-
 
 if p.vae:
     def draw_manifold(generator, show=True):
@@ -218,8 +223,10 @@ if p.vae:
 else:
 
     from scipy.stats import norm
+
     grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
     grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
+
 
     def draw_manifold(generator, lbl, show=True):
         figure = np.zeros((digit_size * n, digit_size * n))
@@ -253,9 +260,9 @@ else:
         im.axes.set_ylim(-5, 5)
         plt.show()
 
-
 from IPython.display import clear_output
 from keras.callbacks import LambdaCallback, ReduceLROnPlateau, TensorBoard
+
 # from tensorflow.keras.callbacks import LambdaCallback
 
 # Arrays in which we will save the results for subsequent visualization
@@ -276,7 +283,6 @@ n_compare = 10
 # Models
 generator = cvae_models["decoder"]
 encoder_mean = cvae_models["z_meaner"]
-
 
 # The function that we will run after each epoch
 if p.vae:
@@ -324,7 +330,7 @@ lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
 tb = TensorBoard(log_dir=f'logs/{name}')
 
 # Run training
-cvae.fit([x_train, y_train_cat, y_train_cat], x_train, shuffle=True, epochs=epoch,
+cvae.fit(x=[x_train, y_train_cat, y_train_cat], y=x_train, shuffle=True, epochs=epoch,
          batch_size=batch_size,
          validation_data=([x_test, y_test_cat, y_test_cat], x_test),
          callbacks=[tb],
@@ -363,5 +369,3 @@ plot_digits(imgs[:n_compare], decoded[:n_compare])
 
 # Manifold drawing
 figure = draw_manifold(generator, show=True)
-
-

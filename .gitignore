@@ -10,6 +10,7 @@ __pycache__/
 *.idea/
 *logs/
 *.vscode/
+*.ipynb
 *VariationalAutoencoder2.py
 
 # Distribution / packaging
