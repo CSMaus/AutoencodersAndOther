@@ -136,7 +136,9 @@ def create_cvae():
     # my_vae = Model(inputs=input_img, outputs=outputs, name='my_vae')
     # models["vae"] = my_vae
 
-    cvae_out = decoder([encoder([inp_img, inp_lbls]), inp_lbls_d])
+    #was so
+    # cvae_out = decoder([encoder([inp_img, inp_lbls]), inp_lbls_d])
+    cvae_out = decoder(encoder([inp_img, inp_lbls]), inp_lbls_d)
 
     my_cvae = Model([inp_img, inp_lbls, inp_lbls_d], cvae_out, name='my_cvae')
     models['cvae'] = my_cvae
