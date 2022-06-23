@@ -28,8 +28,8 @@ use_my_pd = False  # using my preprocessing data algorithm
 
 # ##################### training parameters for models ############################
 batch_size = 100
-latent_dim = 28  # to be easier generate and visualize result
+latent_dim = 128  # to be easier generate and visualize result
 dropout_r = 0.1
 lr_0 = 0.0001
-epoch = 10
+epoch = 50
 

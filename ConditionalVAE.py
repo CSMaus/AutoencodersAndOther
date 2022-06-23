@@ -82,7 +82,8 @@ inp_lbl = Input(shape=(num_classes,))
 
 inp_full = concatenate([inp_img, inp_lbl])  # ([inp_img, inp_lbl])
 x = Dense(256, activation='relu')(inp_full)
-x = apply_bn_and_dropout(x)
+# x = apply_bn_and_dropout(x)
+
 # predict logarithm of variation instead of standard deviation
 encoded = Dense(coders_dim, activation='relu')(x)
 z_mean = Dense(latent_dim, activation='linear')(encoded)
@@ -127,8 +128,8 @@ def recon_loss(y_true, y_pred):
 # ##################################
 
 d_in = Input(shape=(latent_dim + num_classes,))
-d_h = Dense(coders_dim, activation='relu')(d_in)
-x = apply_bn_and_dropout(d_h)
+x = Dense(coders_dim, activation='relu')(d_in)
+# x = apply_bn_and_dropout(x)
 x = Dense(256, activation='relu')(x)
 # x = LeakyReLU()(x)
 d_out = Dense(n_pixels, activation='sigmoid')(x)
@@ -137,7 +138,7 @@ d_out = Dense(n_pixels, activation='sigmoid')(x)
 # d_out = decoded_out(d_h)
 
 # cvae = Model([inp_img, inp_lbl], dec_out)
-encoder = Model([inp_img, inp_lbl], z_mean)
+encoder = Model([inp_img, inp_lbl], z)  # [inp_img, inp_lbl], z_mean
 
 decoder = Model(d_in, d_out)
 
@@ -174,7 +175,7 @@ plt.figure(figsize=(3, 3))
 # plt.imshow(decoder.predict(sample_3).reshape(28, 28), cmap='gray')
 plt.imshow(decoder.predict(sample_3).reshape(28, 28), cmap='gray')
 plt.show()
-sys.exit()
+# sys.exit()
 
 dig = 4
 sides = 8
