@@ -91,6 +91,8 @@ if p.use_flow:
             color_mode='rgb'
         )
 
+
+
         valid_ds = image_generator.flow_from_directory(
             os.path.join(p.dataset_folder),
             class_mode='input',

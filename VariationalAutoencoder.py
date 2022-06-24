@@ -7,6 +7,7 @@ import sys
 from keras.datasets import mnist
 from keras.layers import Input, Dense, BatchNormalization, Dropout, Flatten, Reshape, Lambda, Concatenate
 from keras.models import Model
+from keras.layers import concatenate
 
 import tensorflow as tf
 from keras.metrics.metrics import binary_crossentropy
@@ -16,7 +17,7 @@ from keras import backend as bk
 import parameters as p
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
+'''
 # change (random) normal distribution to other random distribution
 Z = np.random.randn(150, 2)
 X = Z / (np.sqrt(np.sum(Z * Z, axis=1))[:, None]) + Z / 10
@@ -34,7 +35,7 @@ ax.scatter(X[:, 0], X[:, 1])
 ax.grid(True)
 ax.set_xlim(-2, 2)
 ax.set_ylim(-2, 2)
-# plt.show()
+# plt.show()'''
 
 from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
 disable_eager_execution()
@@ -52,6 +53,7 @@ x_test = np.reshape(x_test, (len(x_test), 28, 28, 1))
 y_train_cat = tf.keras.utils.to_categorical(y_train).astype(np.float32)
 y_test_cat = tf.keras.utils.to_categorical(y_test).astype(np.float32)
 num_classes = y_test_cat.shape[1]
+
 
 print(np.shape(x_train))
 print(type(x_train))
@@ -88,7 +90,7 @@ def create_cvae():
     flat = Flatten()(inp_img)
     inp_lbls = Input(shape=(num_classes,), dtype='float32')
 
-    x = Concatenate()([flat, inp_lbls])
+    x = concatenate([flat, inp_lbls])
     x = Dense(256, activation='relu')(x)
     x = apply_bn_and_dropout(x)
     # x = Dense(128, activation='relu')(x)
@@ -105,29 +107,29 @@ def create_cvae():
         return z_means + bk.exp(z_log_vars / 2) * epsilon
 
     l = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
-
+    l_z = concatenate([l, inp_lbls])
     # z = Sampling()([z_mean, z_log_var])
     # encoder = keras.Model(encoder_inputs, [z_mean, z_log_var, z], name="encoder")
-    encoder = Model([inp_img, inp_lbls], l, name='my_encoder')
+    encoder = Model([inp_img, inp_lbls], l_z, name='my_encoder')
     z_meaner = Model([inp_img, inp_lbls], z_mean, name='Enc_z_mean')
     models["encoder"] = encoder
     models["z_meaner"] = z_meaner
     models["z_lvarer"] = Model([inp_img, inp_lbls], z_log_var, name='Enc_z_log_var')
 
     # Decoder
-    z = Input(shape=(latent_dim,))
-    inp_lbls_d = Input(shape=(num_classes,), dtype='float32')
-    x = Concatenate()([z, inp_lbls_d])
-    # x = Dense(128)(x)
-    # x = LeakyReLU()(x)
-    # x = apply_bn_and_dropout(x)
-    x = Dense(256)(x)
+    z = Input(shape=(latent_dim + num_classes,))
+    #   inp_lbls_d = Input(shape=(num_classes,), dtype='float32')
+    #   d_concat_inp = concatenate([z, inp_lbls_d])
+    #   x = Dense(128)(x)
+    #   x = LeakyReLU()(x)
+    #   x = apply_bn_and_dropout(x)
+    x = Dense(256)(z)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
     x = Dense(28 * 28, activation='sigmoid')(x)
     decoded = Reshape((28, 28, 1))(x)
 
-    decoder = Model([z, inp_lbls_d], decoded, name='my_decoder')
+    decoder = Model(z, decoded, name='my_decoder')  # [z, inp_lbls_d]
 
     models["decoder"] = decoder
 
@@ -138,13 +140,13 @@ def create_cvae():
 
     #was so
     # cvae_out = decoder([encoder([inp_img, inp_lbls]), inp_lbls_d])
-    cvae_out = decoder(encoder([inp_img, inp_lbls]), inp_lbls_d)
+    cvae_out = decoder(encoder([inp_img, inp_lbls]))
 
-    my_cvae = Model([inp_img, inp_lbls, inp_lbls_d], cvae_out, name='my_cvae')
+    my_cvae = Model([inp_img, inp_lbls], cvae_out, name='my_cvae')
     models['cvae'] = my_cvae
 
-    out_style = decoder([z_meaner([inp_img, inp_lbls]), inp_lbls_d])
-    models["style_t"] = Model([inp_img, inp_lbls, inp_lbls_d], out_style, name="style_transfer")
+    out_style = decoder(concatenate([z_meaner([inp_img, inp_lbls]), inp_lbls]))
+    models["style_t"] = Model([inp_img, inp_lbls], out_style, name="style_transfer")
 
     def vae_loss(x, decoded):
         x = bk.reshape(x, shape=(batch_size, 28 * 28))
@@ -332,9 +334,9 @@ lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
 tb = TensorBoard(log_dir=f'logs/{name}')
 
 # Run training
-cvae.fit(x=[x_train, y_train_cat, y_train_cat], y=x_train, shuffle=True, epochs=epoch,
+cvae.fit(x=[x_train, y_train_cat], y=x_train, shuffle=True, epochs=epoch,
          batch_size=batch_size,
-         validation_data=([x_test, y_test_cat, y_test_cat], x_test),
+         validation_data=([x_test, y_test_cat], x_test),
          callbacks=[tb],
          verbose=1)
 
@@ -353,20 +355,28 @@ def style_transfer(model, X, lbl_in, lbl_out):
 
 
 n = 10
-lbl = 7
+# lbls = [2, 3, 5, 6, 7]
+# for lbl in lbls:
+lbl = 2
 generated = []
-prot = x_train[y_train == lbl][:n]
+# prot = x_train[y_train == lbl][:n]
 
 for i in range(num_classes):
+    prot = x_train[y_train == i][:n]
     generated.append(style_transfer(cvae_models["style_t"], prot, lbl, i))
 
+prot = x_train[y_train == lbl][:n]
 generated[lbl] = prot
-plot_digits(*generated, invert_colors=True)
+plot_digits(*generated, invert_colors=False)
+
+# sys.exit()
+
+
 
 # Comparison of real and decoded numbers
 print(type(imgs))
 print(imgs.shape)
-decoded = cvae.predict(imgs, batch_size=batch_size)
+decoded = cvae.predict([imgs, imgs_lbls], batch_size=batch_size)
 plot_digits(imgs[:n_compare], decoded[:n_compare])
 
 # Manifold drawing
