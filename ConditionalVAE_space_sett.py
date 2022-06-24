@@ -1,69 +1,381 @@
-import numpy as np, matplotlib.pyplot as plt, seaborn as sns
-from tensorflow.python.keras.layers import Input, Dense, Concatenate
-from tensorflow.python.keras.models import Model
+# NOW IT WORKS ONLY WITH KERAS V 2.4.0
+import keras.optimizers
+import numpy as np, os, pathlib, matplotlib.pyplot as plt, sys, seaborn as sns
+from keras.layers import Input, Dense, BatchNormalization, Dropout, Flatten, Reshape, Lambda, Concatenate
+from keras.models import Model
+from keras.layers import concatenate
+from keras.layers import Rescaling, Reshape, Resizing, RandomZoom, RandomRotation, RandomFlip
+
+import tensorflow as tf
+from keras.metrics.metrics import binary_crossentropy
+from keras.layers import LeakyReLU
+from keras import backend as bk
+# from tensorflow.keras.utils import to_categorical
+import parameters as p
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+'''
+# change (random) normal distribution to other random distribution
+Z = np.random.randn(150, 2)
+X = Z / (np.sqrt(np.sum(Z * Z, axis=1))[:, None]) + Z / 10
+
+fig, axs = plt.subplots(1, 2, sharex=False, figsize=(16, 8))
+
+ax = axs[0]
+ax.scatter(Z[:, 0], Z[:, 1])
+ax.grid(True)
+ax.set_xlim(-5, 5)
+ax.set_ylim(-5, 5)
+
+ax = axs[1]
+ax.scatter(X[:, 0], X[:, 1])
+ax.grid(True)
+ax.set_xlim(-2, 2)
+ax.set_ylim(-2, 2)
+# plt.show()'''
+
+from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
+disable_eager_execution()
+
+# PARAMETERS
+batch_size = p.batch_size
+latent_dim = p.latent_dim  # to be easier generate and visualize result
+dropout_r = p.dropout_r
+lr_0 = p.lr_0
+epoch = p.epoch
+
+img_height = p.img_size
+img_width = p.img_size
+
+Adam = keras.optimizers.Adam
+
+# my data
+tf.debugging.set_log_device_placement(True)
+list_gpu = tf.config.experimental.list_physical_devices(device_type='GPU')
+for gpu in list_gpu:
+    tf.config.experimental.set_memory_growth(gpu, True)
+
+ims = p.img_size
+name = f'pets_cvae_dim{latent_dim}_epochs{epoch}_ims{ims}'
+
+data_dir = p.dataset_folder
+data_dir = pathlib.Path(data_dir)
+image_count = len(list(data_dir.glob('*/*.jpg')))
+print('Number of images:', image_count)
+
+if batch_size < image_count:
+    batch_size = int(image_count * 0.05)
+    # print(batch_size)
+else:
+    batch_size = image_count // 2
 
 
-# create artificial data space
-x1 = np.linspace(-2.2, 2.2, 1000)
-fx1 = np.sin(x1)
-dots1 = np.vstack([x1, fx1]).T
+image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255, validation_split=0.2)
 
-t = np.linspace(0, 2 * np.pi, num=1000)
-dots2 = 0.5 * np.array([np.sin(t), np.cos(t)]).T + np.array([1.5, -0.5])[None, :]
+train_ds = tf.keras.utils.image_dataset_from_directory(
+    data_dir,
+    validation_split=0.2,
+    subset="training",
+    seed=42,
+    batch_size=batch_size,
+    image_size=(ims, ims),
+    labels='inferred',
+    label_mode='categorical',
+    color_mode="rgb"
+)
 
-dots = np.vstack([dots1, dots2])
-noise = 0.06 * np.random.randn(*dots.shape)
+valid_ds = tf.keras.utils.image_dataset_from_directory(
+    data_dir,
+    validation_split=0.2,
+    subset="validation",
+    seed=42,
+    batch_size=batch_size,
+    image_size=(ims, ims),
+    labels='inferred',
+    label_mode='categorical',
+    color_mode="rgb"
+)
 
-labels = np.array([0]*1000 + [1]*1000)
-noised = dots + noise
+'''train_ds = image_generator.flow_from_directory(
+    os.path.join(p.dataset_folder),
+    # class_mode='input',
+    target_size=(ims, ims),
+    batch_size=batch_size,
+    subset="training",
+    color_mode='rgb',
+    label_mode='categorical'
+)
+
+valid_ds = image_generator.flow_from_directory(
+    os.path.join(p.dataset_folder),
+    # class_mode='input',
+    target_size=(ims, ims),
+    batch_size=batch_size,
+    subset="validation",
+    color_mode='rgb',
+    label_mode='categorical'
+)'''
+
+ishape = (ims, ims, 3)
+class_names = train_ds.class_names  # os.listdir(os.path.join(data_dir))
+num_classes = len(class_names)
+print('num_classes:', num_classes, '-', class_names)
+
+data_augmentation = tf.keras.models.Sequential([
+    RandomFlip("horizontal", input_shape=(img_height, img_width, 3)),
+    RandomRotation(0.1),
+    RandomZoom(0.25)])
+# sys.exit()
 
 
-# Visualisation
-colors = ['b'] * 1000 + ['g'] * 1000
-'''plt.figure(figsize=(15, 15))
-plt.xlim([-2.5, 2.5])
-plt.ylim([-1.5, 1.5])
-plt.scatter(noised[:, 0], noised[:, 1], c=colors)
-plt.plot(dots1[:, 0], dots1[:, 1], color='red', linewidth=4)
-plt.plot(dots2[:, 0], dots2[:, 1], color='yellow', linewidth=4)
-plt.grid(False)'''
+# remake to conditional VAE for pets images
+def create_cvae():
+    models = {}
+
+    def apply_bn_and_dropout(x):
+        return Dropout(dropout_r)(BatchNormalization()(x))
+
+    # Encoder
+    inp_img = Input(shape=ishape)  # batch_shape=(batch_size, ims, ims, 1)
+    flat = Flatten()(inp_img)
+    inp_lbls = Input(shape=(num_classes,), dtype='float32')
+
+    x = concatenate([flat, inp_lbls])
+    x = Dense(256, activation='relu')(x)
+    x = apply_bn_and_dropout(x)
+    # x = Dense(128, activation='relu')(x)
+    # x = apply_bn_and_dropout(x)
+
+    # predict logarithm of variation instead of standard deviation
+    z_mean = Dense(latent_dim)(x)
+    z_log_var = Dense(latent_dim)(x)
+
+    # sampling from Q with reparametrisation
+    def sampling(args):
+        z_means, z_log_vars = args
+        epsilon = bk.random_normal(shape=(batch_size, latent_dim), mean=0., stddev=1.0)
+        return z_means + bk.exp(z_log_vars / 2) * epsilon
+
+    l = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
+    l_z = concatenate([l, inp_lbls])
+
+    encoder = Model([inp_img, inp_lbls], l_z, name='my_encoder')
+    z_meaner = Model([inp_img, inp_lbls], z_mean, name='Enc_z_mean')
+    models["encoder"] = encoder
+    models["z_meaner"] = z_meaner
+    models["z_lvarer"] = Model([inp_img, inp_lbls], z_log_var, name='Enc_z_log_var')
+
+    # Decoder
+    z = Input(shape=(latent_dim + num_classes,))
+    x = Dense(256)(z)
+    x = LeakyReLU()(x)
+    x = apply_bn_and_dropout(x)
+    x = Dense(ims * ims * 3, activation='sigmoid')(x)
+    decoded = Reshape(ishape)(x)
+
+    decoder = Model(z, decoded, name='my_decoder')  # [z, inp_lbls_d]
+
+    models["decoder"] = decoder
+
+    cvae_out = decoder(encoder([inp_img, inp_lbls]))
+
+    my_cvae = Model([inp_img, inp_lbls], cvae_out, name='my_cvae')
+    models['cvae'] = my_cvae
+
+    out_style = decoder(concatenate([z_meaner([inp_img, inp_lbls]), inp_lbls]))
+    models["style_t"] = Model([inp_img, inp_lbls], out_style, name="style_transfer")
+
+    def vae_loss(x, decoded):
+        x = bk.reshape(x, shape=(batch_size, ims * ims * 3))
+        decoded = bk.reshape(decoded, shape=(batch_size, ims * ims * 3))
+        xent_loss = ims * ims * 3 * binary_crossentropy(x, decoded)
+        kl_loss = -0.5 * bk.sum(1 + z_log_var - bk.square(z_mean) - bk.exp(z_log_var), axis=-1)
+        return (xent_loss + kl_loss)/2/ims/ims/3
+
+    return models, vae_loss
 
 
-# simple Model and its training
-def dense_ae():
-    inp_dots = Input((2, ))
-    inp_lbls = Input((1, ))
-    inp = Concatenate()([inp_dots, inp_lbls])
-    x = Dense(64, activation='relu')(inp)
-    x = Dense(64, activation='relu')(x)
-    code = Dense(1, activation='linear')(x)
+from tensorflow.python.framework.ops import disable_eager_execution
 
-    fcode = Concatenate()([code, inp_lbls])
-    x = Dense(64, activation='relu')(fcode)
-    x = Dense(64, activation='relu')(x)
-    out = Dense(2, activation='linear')(x)
+disable_eager_execution()
 
-    ae = Model([inp_dots, inp_lbls], out)
-    return ae
+cvae_models, cvae_losses = create_cvae()
+cvae = cvae_models["cvae"]
+
+cvae.compile(optimizer='adam', loss=cvae_losses, experimental_run_tf_function=False)  # cvae_losses
+
+# Plot images / digits
+digit_size = ims
 
 
-dae = dense_ae()
-dae.compile(optimizer='adam', loss='mse')
-dae.fit([noised, labels], noised, epochs=50, batch_size=40, verbose=2)
+def plot_digits(*args, invert_colors=False):
+    args = [x.squeeze() for x in args]
+    n_f = min([x.shape[0] for x in args])
+    figure = np.zeros((digit_size * len(args), digit_size * n_f))
 
-# Result
-predicted = dae.predict([noised, labels])
+    for i in range(n_f):
+        for j in range(len(args)):
+            figure[j * digit_size: (j + 1) * digit_size,
+            i * digit_size: (i + 1) * digit_size] = args[j][i].squeeze()
 
-# So, if we give as input only data without labels (what category this data is)
-# than we will get not so good results: we couldn't clear define and separate different categories
+    if invert_colors:
+        figure = 1 - figure
 
-# visualize predicted
-plt.figure(figsize=(15, 9))
-plt.xlim([-2.5, 2.5])
-plt.ylim([-1.5, 1.5])
-plt.scatter(noised[:, 0], noised[:, 1], c=colors)
-plt.plot(dots1[:, 0], dots1[:, 1],  color="red",    linewidth=4)
-plt.plot(dots2[:, 0], dots2[:, 1],  color="yellow", linewidth=4)
-plt.scatter(predicted[:, 0], predicted[:, 1], c='gray', s=50)
-plt.grid(False)
-plt.show()
+    plt.figure(figsize=(2 * n_f, 2 * len(args)))
+    plt.imshow(figure, cmap='Greys_r')
+    plt.grid(False)
+    ax = plt.gca()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    plt.show()
+
+
+n = 15  # Img with 15x15 digits
+
+from scipy.stats import norm
+
+# Since we are sampling from N(0, I),
+# we take the grid of nodes in which we generate numbers from the inverse distribution function
+grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
+grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
+
+
+from scipy.stats import norm
+
+grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
+grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
+
+
+def draw_manifold(generator, lbl, show=True):
+    figure = np.zeros((digit_size * n, digit_size * n))
+    input_lbl = np.zeros((1, 10))
+    input_lbl[0, lbl] = 1
+    for i, yi in enumerate(grid_x):
+        for j, xi in enumerate(grid_y):
+            z_sample = np.zeros((1, latent_dim))
+            z_sample[:, :2] = np.array([[xi, yi]])
+
+            x_decoded = generator.predict([z_sample, input_lbl])
+            digit = x_decoded[0].squeeze()
+            figure[i * digit_size: (i + 1) * digit_size,
+            j * digit_size: (j + 1) * digit_size] = digit
+    if show:
+        plt.figure(figsize=(10, 10))
+        plt.imshow(figure, cmap='Greys_r')
+        plt.grid(False)
+        ax = plt.gca()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        plt.show()
+    return figure
+
+
+def draw_z_distr(z_predicted, lbl):
+    input_lbl = np.zeros((1, 10))
+    input_lbl[0, lbl] = 1
+    im = plt.scatter(z_predicted[:, 0], z_predicted[:, 1])
+    im.axes.set_xlim(-5, 5)
+    im.axes.set_ylim(-5, 5)
+    plt.show()
+
+from IPython.display import clear_output
+from keras.callbacks import LambdaCallback, ReduceLROnPlateau, TensorBoard
+
+# from tensorflow.keras.callbacks import LambdaCallback
+
+# Arrays in which we will save the results for subsequent visualization
+# figs = []
+# latent_distrs = []
+figs = [[] for x in range(num_classes)]
+latent_distrs = [[] for x in range(num_classes)]
+epochs = []
+
+# Saves epoches
+save_epochs = set(list((np.arange(0, 59) ** 1.701).astype(int)) + list(range(10)))
+
+# We'll be tracking on these numbers
+imgs = x_test[:batch_size]
+imgs_lbls = y_test_cat[:batch_size]
+n_compare = 10
+
+# Models
+generator = cvae_models["decoder"]
+encoder_mean = cvae_models["z_meaner"]
+
+# The function that we will run after each epoch
+
+def on_epoch_end(epoch, logs):
+    if epoch in save_epochs:
+        clear_output()  # Не захламляем output
+
+        # Сравнение реальных и декодированных цифр
+        decoded = cvae.predict([imgs, imgs_lbls, imgs_lbls], batch_size=batch_size)
+        plot_digits(imgs[:n_compare], decoded[:n_compare])
+
+        # Рисование многообразия для рандомного y и распределения z|y
+        draw_lbl = np.random.randint(0, num_classes)
+        print(draw_lbl)
+        for lbl in range(num_classes):
+            figs[lbl].append(draw_manifold(generator, lbl, show=lbl == draw_lbl))
+            idxs = y_test == lbl
+            z_predicted = encoder_mean.predict([x_test[idxs], y_test_cat[idxs]], batch_size)
+            latent_distrs[lbl].append(z_predicted)
+            if lbl == draw_lbl:
+                draw_z_distr(z_predicted, lbl)
+        epochs.append(epoch)
+
+# Callback
+
+lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
+
+# lr_red = ReduceLROnPlateau(factor=0.1, patience=25)
+tb = TensorBoard(log_dir=f'logs/{name}')
+
+# Run training
+cvae.fit(x=[x_train, y_train_cat], y=x_train, shuffle=True, epochs=epoch,
+         batch_size=batch_size,
+         validation_data=([x_test, y_test_cat], x_test),
+         callbacks=[tb],
+         verbose=1)
+
+
+def style_transfer(model, X, lbl_in, lbl_out):
+    rows = X.shape[0]
+    if isinstance(lbl_in, int):
+        lbl_f = lbl_in
+        lbl_in = np.zeros((rows, 10))
+        lbl_in[:, lbl_f] = 1
+    if isinstance(lbl_out, int):
+        lbl_f = lbl_out
+        lbl_out = np.zeros((rows, 10))
+        lbl_out[:, lbl_f] = 1
+    return model.predict([X, lbl_in, lbl_out])
+
+
+n = 10
+# lbls = [2, 3, 5, 6, 7]
+# for lbl in lbls:
+lbl = 2
+generated = []
+# prot = x_train[y_train == lbl][:n]
+
+for i in range(num_classes):
+    prot = x_train[y_train == i][:n]
+    generated.append(style_transfer(cvae_models["style_t"], prot, lbl, i))
+
+prot = x_train[y_train == lbl][:n]
+generated[lbl] = prot
+plot_digits(*generated, invert_colors=False)
+
+# sys.exit()
+
+
+
+# Comparison of real and decoded numbers
+print(type(imgs))
+print(imgs.shape)
+decoded = cvae.predict([imgs, imgs_lbls], batch_size=batch_size)
+plot_digits(imgs[:n_compare], decoded[:n_compare])
+
+# Manifold drawing
+figure = draw_manifold(generator, show=True)

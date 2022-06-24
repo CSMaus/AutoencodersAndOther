@@ -92,7 +92,7 @@ def create_cvae():
 
     x = concatenate([flat, inp_lbls])
     x = Dense(256, activation='relu')(x)
-    x = apply_bn_and_dropout(x)
+    # x = apply_bn_and_dropout(x)
     # x = Dense(128, activation='relu')(x)
     # x = apply_bn_and_dropout(x)
 
@@ -125,7 +125,7 @@ def create_cvae():
     #   x = apply_bn_and_dropout(x)
     x = Dense(256)(z)
     x = LeakyReLU()(x)
-    x = apply_bn_and_dropout(x)
+    # x = apply_bn_and_dropout(x)
     x = Dense(28 * 28, activation='sigmoid')(x)
     decoded = Reshape((28, 28, 1))(x)
 
