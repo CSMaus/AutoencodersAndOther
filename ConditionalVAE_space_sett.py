@@ -14,28 +14,6 @@ from keras import backend as bk
 import parameters as p
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-'''
-# change (random) normal distribution to other random distribution
-Z = np.random.randn(150, 2)
-X = Z / (np.sqrt(np.sum(Z * Z, axis=1))[:, None]) + Z / 10
-
-fig, axs = plt.subplots(1, 2, sharex=False, figsize=(16, 8))
-
-ax = axs[0]
-ax.scatter(Z[:, 0], Z[:, 1])
-ax.grid(True)
-ax.set_xlim(-5, 5)
-ax.set_ylim(-5, 5)
-
-ax = axs[1]
-ax.scatter(X[:, 0], X[:, 1])
-ax.grid(True)
-ax.set_xlim(-2, 2)
-ax.set_ylim(-2, 2)
-# plt.show()'''
-
-from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
-disable_eager_execution()
 
 # PARAMETERS
 batch_size = p.batch_size
@@ -69,7 +47,7 @@ if batch_size < image_count:
 else:
     batch_size = image_count // 2
 
-
+print('BATCH SIZE:', batch_size)
 image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255, validation_split=0.2)
 
 train_ds = tf.keras.utils.image_dataset_from_directory(
@@ -96,7 +74,36 @@ valid_ds = tf.keras.utils.image_dataset_from_directory(
     color_mode="rgb"
 )
 
-'''train_ds = image_generator.flow_from_directory(
+
+
+
+ishape = (ims, ims, 3)
+class_names = train_ds.class_names  # os.listdir(os.path.join(data_dir))
+num_classes = len(class_names)
+print('num_classes:', num_classes, '-', class_names)
+
+
+full_imgs = lambda ds: np.concatenate([x for x, y in ds])
+full_lbls = lambda ds: np.concatenate([y for x, y in ds])
+
+train_img = full_imgs(train_ds)
+train_img = train_img.astype('float32') / 255.
+train_lbl = full_lbls(train_ds)
+# train_lbl_cat = tf.keras.utils.to_categorical(train_lbl).astype(np.float32)
+
+valid_img = full_imgs(valid_ds)
+valid_img = valid_img.astype('float32') / 255.
+valid_lbl = full_lbls(valid_ds)
+# valid_lbl_cat = tf.keras.utils.to_categorical(valid_lbl).astype(np.float32)
+
+print('\n\nshape train_img, train_lbl:', np.shape(train_img), np.shape(train_lbl), '\n')
+
+# train_lbls = train_lbl[0]
+# print(np.shape(train_lbl.T[0]))
+# sys.exit()
+
+'''
+train_ds = image_generator.flow_from_directory(
     os.path.join(p.dataset_folder),
     # class_mode='input',
     target_size=(ims, ims),
@@ -116,16 +123,16 @@ valid_ds = image_generator.flow_from_directory(
     label_mode='categorical'
 )'''
 
-ishape = (ims, ims, 3)
-class_names = train_ds.class_names  # os.listdir(os.path.join(data_dir))
-num_classes = len(class_names)
-print('num_classes:', num_classes, '-', class_names)
-
 data_augmentation = tf.keras.models.Sequential([
     RandomFlip("horizontal", input_shape=(img_height, img_width, 3)),
     RandomRotation(0.1),
     RandomZoom(0.25)])
 # sys.exit()
+
+# #######################################################################################
+from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
+disable_eager_execution()
+# #######################################################################################
 
 
 # remake to conditional VAE for pets images
@@ -143,8 +150,8 @@ def create_cvae():
     x = concatenate([flat, inp_lbls])
     x = Dense(256, activation='relu')(x)
     x = apply_bn_and_dropout(x)
-    # x = Dense(128, activation='relu')(x)
-    # x = apply_bn_and_dropout(x)
+    x = Dense(128, activation='relu')(x)
+    x = apply_bn_and_dropout(x)
 
     # predict logarithm of variation instead of standard deviation
     z_mean = Dense(latent_dim)(x)
@@ -167,6 +174,9 @@ def create_cvae():
 
     # Decoder
     z = Input(shape=(latent_dim + num_classes,))
+    x = Dense(128)(z)
+    x = LeakyReLU()(x)
+    x = apply_bn_and_dropout(x)
     x = Dense(256)(z)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
@@ -211,18 +221,18 @@ digit_size = ims
 def plot_digits(*args, invert_colors=False):
     args = [x.squeeze() for x in args]
     n_f = min([x.shape[0] for x in args])
-    figure = np.zeros((digit_size * len(args), digit_size * n_f))
+    figure = np.zeros((digit_size * len(args), digit_size * n_f, 3))
 
     for i in range(n_f):
         for j in range(len(args)):
             figure[j * digit_size: (j + 1) * digit_size,
-            i * digit_size: (i + 1) * digit_size] = args[j][i].squeeze()
+            i * digit_size: (i + 1) * digit_size, :] = args[j][i].squeeze()
 
     if invert_colors:
         figure = 1 - figure
 
     plt.figure(figsize=(2 * n_f, 2 * len(args)))
-    plt.imshow(figure, cmap='Greys_r')
+    plt.imshow(figure)  # cmap='Greys_r'
     plt.grid(False)
     ax = plt.gca()
     ax.get_xaxis().set_visible(False)
@@ -278,6 +288,7 @@ def draw_z_distr(z_predicted, lbl):
     im.axes.set_ylim(-5, 5)
     plt.show()
 
+
 from IPython.display import clear_output
 from keras.callbacks import LambdaCallback, ReduceLROnPlateau, TensorBoard
 
@@ -294,16 +305,16 @@ epochs = []
 save_epochs = set(list((np.arange(0, 59) ** 1.701).astype(int)) + list(range(10)))
 
 # We'll be tracking on these numbers
-imgs = x_test[:batch_size]
-imgs_lbls = y_test_cat[:batch_size]
+imgs = valid_img[:batch_size]
+imgs_lbls = valid_lbl[:batch_size]
 n_compare = 10
 
 # Models
 generator = cvae_models["decoder"]
 encoder_mean = cvae_models["z_meaner"]
 
-# The function that we will run after each epoch
 
+# The function that we will run after each epoch
 def on_epoch_end(epoch, logs):
     if epoch in save_epochs:
         clear_output()  # Не захламляем output
@@ -317,24 +328,24 @@ def on_epoch_end(epoch, logs):
         print(draw_lbl)
         for lbl in range(num_classes):
             figs[lbl].append(draw_manifold(generator, lbl, show=lbl == draw_lbl))
-            idxs = y_test == lbl
-            z_predicted = encoder_mean.predict([x_test[idxs], y_test_cat[idxs]], batch_size)
+            idxs = valid_img == lbl
+            z_predicted = encoder_mean.predict([valid_img[idxs], imgs_lbls[idxs]], batch_size)
             latent_distrs[lbl].append(z_predicted)
             if lbl == draw_lbl:
                 draw_z_distr(z_predicted, lbl)
         epochs.append(epoch)
 
-# Callback
 
+# Callback
 lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
 
 # lr_red = ReduceLROnPlateau(factor=0.1, patience=25)
 tb = TensorBoard(log_dir=f'logs/{name}')
 
 # Run training
-cvae.fit(x=[x_train, y_train_cat], y=x_train, shuffle=True, epochs=epoch,
+cvae.fit(x=[train_img, train_lbl], y=train_img, shuffle=True, epochs=epoch,
          batch_size=batch_size,
-         validation_data=([x_test, y_test_cat], x_test),
+         validation_data=([valid_img, valid_lbl], valid_img),
          callbacks=[tb],
          verbose=1)
 
@@ -343,27 +354,29 @@ def style_transfer(model, X, lbl_in, lbl_out):
     rows = X.shape[0]
     if isinstance(lbl_in, int):
         lbl_f = lbl_in
-        lbl_in = np.zeros((rows, 10))
+        lbl_in = np.zeros((rows, 2))
         lbl_in[:, lbl_f] = 1
     if isinstance(lbl_out, int):
         lbl_f = lbl_out
-        lbl_out = np.zeros((rows, 10))
+        lbl_out = np.zeros((rows, 2))
         lbl_out[:, lbl_f] = 1
     return model.predict([X, lbl_in, lbl_out])
 
 
-n = 10
+n = 5
 # lbls = [2, 3, 5, 6, 7]
 # for lbl in lbls:
-lbl = 2
+lbl = 1
 generated = []
 # prot = x_train[y_train == lbl][:n]
 
+
 for i in range(num_classes):
-    prot = x_train[y_train == i][:n]
+    print(i)
+    prot = train_img[train_lbl.T[0] == i][:n]
     generated.append(style_transfer(cvae_models["style_t"], prot, lbl, i))
 
-prot = x_train[y_train == lbl][:n]
+prot = train_img[train_lbl.T[0] == lbl][:n]
 generated[lbl] = prot
 plot_digits(*generated, invert_colors=False)
 

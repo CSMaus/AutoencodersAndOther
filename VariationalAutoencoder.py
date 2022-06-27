@@ -55,11 +55,11 @@ y_test_cat = tf.keras.utils.to_categorical(y_test).astype(np.float32)
 num_classes = y_test_cat.shape[1]
 
 
-print(np.shape(x_train))
-print(type(x_train))
+print('shape y_train', np.shape(y_train))
+print(type(y_train))
 
-print(np.shape(x_test))
-print(type(x_test))
+# print(np.shape(x_test))
+# print(type(x_test))
 
 # sys.exit()
 
@@ -203,14 +203,14 @@ grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
 grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
 
 if p.vae:
-    def draw_manifold(generator, show=True):
+    def draw_manifold(generator_f, show=True):
         figure = np.zeros((digit_size * n, digit_size * n))
         for i, yi in enumerate(grid_x):
             for j, xi in enumerate(grid_y):
                 z_sample = np.zeros((1, latent_dim))
                 z_sample[:, :2] = np.array([[xi, yi]])
 
-                x_decoded = generator.predict(z_sample)
+                x_decoded = generator_f.predict(z_sample)
                 digit = x_decoded[0].squeeze()
                 figure[i * digit_size: (i + 1) * digit_size,
                 j * digit_size: (j + 1) * digit_size] = digit
@@ -232,7 +232,7 @@ else:
     grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
 
 
-    def draw_manifold(generator, lbl, show=True):
+    def draw_manifold(generator_f, lbl, show=True):
         figure = np.zeros((digit_size * n, digit_size * n))
         input_lbl = np.zeros((1, 10))
         input_lbl[0, lbl] = 1
@@ -241,7 +241,7 @@ else:
                 z_sample = np.zeros((1, latent_dim))
                 z_sample[:, :2] = np.array([[xi, yi]])
 
-                x_decoded = generator.predict([z_sample, input_lbl])
+                x_decoded = generator_f.predict([z_sample, input_lbl])
                 digit = x_decoded[0].squeeze()
                 figure[i * digit_size: (i + 1) * digit_size,
                 j * digit_size: (j + 1) * digit_size] = digit
@@ -380,4 +380,5 @@ decoded = cvae.predict([imgs, imgs_lbls], batch_size=batch_size)
 plot_digits(imgs[:n_compare], decoded[:n_compare])
 
 # Manifold drawing
-figure = draw_manifold(generator, show=True)
+figure = draw_manifold(generator, lbl=lbl, show=True)
+
