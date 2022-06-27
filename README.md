@@ -21,13 +21,19 @@ Now I'm just studying autoencoders, so here will be a lot of attempts of making 
 ### mnistAE.py and ManifoldLearning.py
 Here there are few simple autoencoders that uses mnist dataset. It's just to understand how does AE works.<br>
 
-### VariationalAutoencoder.py and VariationalAutoencoder.py
-Simple examples of VAE (with only dense layers). <br>
-First one uses mnist dataset.<br>
-Second one is attempt to load pets data and see how the output will look like.<br>
+### VariationalAutoencoderPets.py and VariationalAutoencoder.py
+Simple examples of VAE and conditional VAE (CVAE) (with only dense layers). <br>
+VariationalAutoencoder.py uses mnist dataset. Now I remada it into CVAE.<br>
+VariationalAutoencoderPets.py is attempt to load pets data and see how the output will look like.<br>
 Now the output looks like this:<br>
 ![input_output_50ep_ims112_simpleVAE](https://user-images.githubusercontent.com/60517813/174012570-e5188dfb-c5c1-493e-b257-1775961837c4.jpg)
-<br>Here VAE is very simple, so it cannt give good output.
+<br>Here VAE is very simple, so it cannt give good output.<br>
 
+### ConditionalVAE_space_sett.py
+Here first very simple conditional VAE thst uses pets images (it uses labels also to improve accuracy). Output quality is velry low and bad, but results much better than in VAE.<br>
+Such low quality results are due to the too simple NN architecure (3 Fully connetcted layers) that is the base for this AE.<br>
+![ConditioinalVAE_2Dense_lat_dim128_ims128](https://user-images.githubusercontent.com/60517813/175881094-e08b50f1-cb3b-4351-b312-95c1467aeb69.jpg)
+<br>
 ### Further
-I have plans to test different data preprocessing methods, write more complicated NN for encoder and decoder in AE to improve quality of output data. 
+I have plans to upgrade and test different data preprocessing methods, write more complicated NN for encoder and decoder in AE to improve quality of output data.<br>
+But the next step (and 2 scripts) will be for the GAN (simple GAN with Conv NN as base).
