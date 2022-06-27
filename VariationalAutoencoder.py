@@ -308,13 +308,13 @@ if p.vae:
 else:
     def on_epoch_end(epoch, logs):
         if epoch in save_epochs:
-            clear_output()  # Не захламляем output
+            clear_output()
 
-            # Сравнение реальных и декодированных цифр
+            # Comparison of real and decoded numbers
             decoded = cvae.predict([imgs, imgs_lbls, imgs_lbls], batch_size=batch_size)
             plot_digits(imgs[:n_compare], decoded[:n_compare])
 
-            # Рисование многообразия для рандомного y и распределения z|y
+
             draw_lbl = np.random.randint(0, num_classes)
             print(draw_lbl)
             for lbl in range(num_classes):

@@ -148,10 +148,10 @@ def create_cvae():
     inp_lbls = Input(shape=(num_classes,), dtype='float32')
 
     x = concatenate([flat, inp_lbls])
-    x = Dense(256, activation='relu')(x)
+    x = Dense(1024, activation='relu')(x)
     x = apply_bn_and_dropout(x)
-    x = Dense(128, activation='relu')(x)
-    x = apply_bn_and_dropout(x)
+    # x = Dense(128, activation='relu')(x)
+    # x = apply_bn_and_dropout(x)
 
     # predict logarithm of variation instead of standard deviation
     z_mean = Dense(latent_dim)(x)
@@ -174,12 +174,12 @@ def create_cvae():
 
     # Decoder
     z = Input(shape=(latent_dim + num_classes,))
-    x = Dense(128)(z)
+    x = Dense(1024)(z)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
-    x = Dense(256)(z)
-    x = LeakyReLU()(x)
-    x = apply_bn_and_dropout(x)
+    # x = Dense(256)(z)
+    # x = LeakyReLU()(x)
+    # x = apply_bn_and_dropout(x)
     x = Dense(ims * ims * 3, activation='sigmoid')(x)
     decoded = Reshape(ishape)(x)
 
@@ -319,11 +319,10 @@ def on_epoch_end(epoch, logs):
     if epoch in save_epochs:
         clear_output()  # Не захламляем output
 
-        # Сравнение реальных и декодированных цифр
+        # Comparison of real and decoded numbers
         decoded = cvae.predict([imgs, imgs_lbls, imgs_lbls], batch_size=batch_size)
         plot_digits(imgs[:n_compare], decoded[:n_compare])
 
-        # Рисование многообразия для рандомного y и распределения z|y
         draw_lbl = np.random.randint(0, num_classes)
         print(draw_lbl)
         for lbl in range(num_classes):
@@ -381,8 +380,6 @@ generated[lbl] = prot
 plot_digits(*generated, invert_colors=False)
 
 # sys.exit()
-
-
 
 # Comparison of real and decoded numbers
 print(type(imgs))
