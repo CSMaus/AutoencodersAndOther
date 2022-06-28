@@ -98,14 +98,8 @@ d_hidden1 = Dense(coders_dim, activation='relu')
 d_hidden2 = Dense(256, activation='relu')
 decoded_out = Dense(n_pixels, activation='sigmoid')
 
-
-# this function doesn't work
-def layers(inp_layer):
-    dh1 = Dense(coders_dim, activation='relu')(inp_layer)
-    dh2 = Dense(256, activation='relu')(dh1)
-    d_c_out = Dense(n_pixels, activation='sigmoid')(dh2)
-    return d_c_out
-'''previous solution for very simple 1-layer model
+'''
+previous solution for very simple 1-layer model
 decoded_hidden = Dense(coders_dim, activation='relu')
 decoded_out = Dense(n_pixels, activation='sigmoid')
 dec_h = decoded_hidden(zc)
