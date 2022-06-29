@@ -317,7 +317,7 @@ encoder_mean = cvae_models["z_meaner"]
 # The function that we will run after each epoch
 def on_epoch_end(epoch, logs):
     if epoch in save_epochs:
-        clear_output()  # Не захламляем output
+        clear_output()
 
         # Comparison of real and decoded numbers
         decoded = cvae.predict([imgs, imgs_lbls, imgs_lbls], batch_size=batch_size)

@@ -32,12 +32,7 @@ img_width = p.img_size
 
 Adam = keras.optimizers.Adam
 
-# my data
-tf.debugging.set_log_device_placement(True)
-list_gpu = tf.config.experimental.list_physical_devices(device_type='GPU')
-for gpu in list_gpu:
-    tf.config.experimental.set_memory_growth(gpu, True)
-
+# data load and preprocess
 ims = p.img_size
 name = f'pets_cvae_dim{latent_dim}_epochs{epoch}_ims{ims}'
 
@@ -49,13 +44,10 @@ print('Number of images:', image_count)
 if batch_size < image_count:
     if (image_count % batch_size) != 0:
         batch_size = int(image_count * 0.05)
-    # print(batch_size)
 else:
     batch_size = image_count // 2
 
 print('BATCH SIZE:', batch_size)
-# sys.exit()
-# image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255, validation_split=0.2)
 
 train_ds = tf.keras.utils.image_dataset_from_directory(
     data_dir,
@@ -94,7 +86,6 @@ full_lbls = lambda ds: np.concatenate([y for x, y in ds])
 train_img = full_imgs(train_ds)
 train_img = train_img.astype('float32') / 255.
 train_lbl = full_lbls(train_ds)
-# train_lbl_cat = tf.keras.utils.to_categorical(train_lbl).astype(np.float32)
 
 valid_img = full_imgs(valid_ds)
 valid_img = valid_img.astype('float32') / 255.
@@ -143,7 +134,6 @@ def create_cvae():
     flat = Flatten()(inp_img)
     inp_lbls = Input(shape=(num_classes,), dtype='float32')
     # print('shape of inp_lbls 0, 1', inp_lbls.shape[0], inp_lbls.shape[1])
-    # sys.exit()
 
     x = Conv2D(batch_size * 2, (7, 7), activation='relu', padding='same')(inp_img)
     x = MaxPooling2D((2, 2), padding='same')(x)
@@ -164,9 +154,6 @@ def create_cvae():
     def sampling(args):
         z_means, z_log_vars = args
         epsilon = bk.random_normal(shape=(batch_size, latent_dim), mean=0., stddev=1.0)
-
-        # print('\n\nshape of z_mean [0], [1]', z_mean.shape[0], z_mean.shape[1], '\n')
-        # print('\n\nshape of epsilon [0], [1]', epsilon.shape[0], epsilon.shape[1], '\n')
         return z_means + bk.exp(z_log_vars / 2) * epsilon
 
     l = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
@@ -184,7 +171,6 @@ def create_cvae():
     z = Input(shape=(latent_dim + num_classes,))
     # x = concatenate([z, lbl])
 
-    # if we use convolutional VAE
     nn = int(ims//56)  # 28
     x = Dense(7*nn * 7*nn * batch_size, activation='relu', name='decoder_dense_1')(z)
     x = Reshape((7*nn, 7*nn, batch_size))(x)
@@ -248,11 +234,10 @@ encoder_mean = cvae_models["z_meaner"]
 # The function that we will run after each epoch
 def on_epoch_end(epoch, logs):
     if epoch in save_epochs:
-        clear_output()  # Не захламляем output
-
+        clear_output()
         # Comparison of real and decoded numbers
         decoded = cvae.predict([imgs, imgs_lbls, imgs_lbls], batch_size=batch_size)
-        plot_digits(imgs[:n_compare], decoded[:n_compare])
+        plot_images(imgs[:n_compare], decoded[:n_compare])
 
         draw_lbl = np.random.randint(0, num_classes)
         print(draw_lbl)
@@ -280,27 +265,19 @@ cvae.fit(x=[train_img, train_lbl], y=train_img, shuffle=True, epochs=epoch,
          verbose=1)
 # batch_size=batch_size,
 
-# cvae.fit(x=, y=,
-#          shuffle=True,
-#          epochs=epoch,
-#          validation_data=(, ),
-#          callbacks=[tb],
-#          verbose=1)
+# Plot images
+images_size = ims
 
 
-# Plot images / digits
-digit_size = ims
-
-
-def plot_digits(*args, invert_colors=False):
+def plot_images(*args, invert_colors=False):
     args = [x.squeeze() for x in args]
     n_f = min([x.shape[0] for x in args])
-    figure = np.zeros((digit_size * len(args), digit_size * n_f, 3))
+    figure = np.zeros((images_size * len(args), images_size * n_f, 3))
 
     for i in range(n_f):
         for j in range(len(args)):
-            figure[j * digit_size: (j + 1) * digit_size,
-            i * digit_size: (i + 1) * digit_size, :] = args[j][i].squeeze()
+            figure[j * images_size: (j + 1) * images_size,
+            i * images_size: (i + 1) * images_size, :] = args[j][i].squeeze()
 
     if invert_colors:
         figure = 1 - figure
@@ -314,7 +291,7 @@ def plot_digits(*args, invert_colors=False):
     plt.show()
 
 
-n = 15  # Img with 15x15 digits
+n = 15  # Img with 15x15
 # Since we are sampling from N(0, I),
 # we take the grid of nodes in which we generate numbers from the inverse distribution function
 from scipy.stats import norm
@@ -324,7 +301,7 @@ grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
 
 
 def draw_manifold(generator, lbl, show=True):
-    figure = np.zeros((digit_size * n, digit_size * n))
+    figure = np.zeros((images_size * n, images_size * n))
     input_lbl = np.zeros((1, 10))
     input_lbl[0, lbl] = 1
     for i, yi in enumerate(grid_x):
@@ -333,9 +310,9 @@ def draw_manifold(generator, lbl, show=True):
             z_sample[:, :2] = np.array([[xi, yi]])
 
             x_decoded = generator.predict([z_sample, input_lbl])
-            digit = x_decoded[0].squeeze()
-            figure[i * digit_size: (i + 1) * digit_size,
-            j * digit_size: (j + 1) * digit_size] = digit
+            images = x_decoded[0].squeeze()
+            figure[i * images_size: (i + 1) * images_size,
+            j * images_size: (j + 1) * images_size] = images
     if show:
         plt.figure(figsize=(10, 10))
         plt.imshow(figure, cmap='Greys_r')
@@ -384,7 +361,7 @@ for i in range(num_classes):
 
 prot = train_img[train_lbl.T[0] == lbl][:n]
 generated[lbl] = prot
-plot_digits(*generated, invert_colors=False)
+plot_images(*generated, invert_colors=False)
 
 # sys.exit()
 
@@ -392,7 +369,7 @@ plot_digits(*generated, invert_colors=False)
 print(type(imgs))
 print(imgs.shape)
 decoded = cvae.predict([imgs, imgs_lbls], batch_size=batch_size)
-plot_digits(imgs[:n_compare], decoded[:n_compare])
+plot_images(imgs[:n_compare], decoded[:n_compare])
 
 # Manifold drawing
 figure = draw_manifold(generator, show=True)
