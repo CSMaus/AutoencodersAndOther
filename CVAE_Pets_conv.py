@@ -145,9 +145,9 @@ def create_cvae():
     # print('shape of inp_lbls 0, 1', inp_lbls.shape[0], inp_lbls.shape[1])
     # sys.exit()
 
-    x = Conv2D(batch_size * 4, (7, 7), activation='relu', padding='same')(inp_img)
+    x = Conv2D(batch_size * 2, (7, 7), activation='relu', padding='same')(inp_img)
     x = MaxPooling2D((2, 2), padding='same')(x)
-    x = Conv2D(batch_size*2, (7, 7), activation='relu', padding='same')(x)
+    x = Conv2D(batch_size * 2, (7, 7), activation='relu', padding='same')(x)
     x = MaxPooling2D((2, 2), padding='same')(x)
     x = add_units_to_conv2d(x, inp_lbls)
     x = Conv2D(batch_size, (2, 2), activation='relu', padding='same')(x)
@@ -185,14 +185,14 @@ def create_cvae():
     # x = concatenate([z, lbl])
 
     # if we use convolutional VAE
-    nn = int(ims//28)
+    nn = int(ims//56)  # 28
     x = Dense(7*nn * 7*nn * batch_size, activation='relu', name='decoder_dense_1')(z)
     x = Reshape((7*nn, 7*nn, batch_size))(x)
     x = Conv2D(batch_size, (7, 7), activation='relu', padding='same')(x)
     x = UpSampling2D((2, 2))(x)
     x = Conv2D(batch_size*2, (2, 2), activation='relu', padding='same')(x)
     x = UpSampling2D((2, 2))(x)
-    x = Conv2D(batch_size * 4, (2, 2), activation='relu', padding='same')(x)
+    x = Conv2D(batch_size * 2, (2, 2), activation='relu', padding='same')(x)
     x = UpSampling2D((2, 2))(x)
     decoded = Conv2D(3, (7, 7), activation='sigmoid', padding='same')(x)
 
@@ -221,7 +221,7 @@ def create_cvae():
 cvae_models, cvae_losses = create_cvae()
 cvae = cvae_models["cvae"]
 
-cvae.compile(optimizer='adam', loss=cvae_losses, experimental_run_tf_function=True)  # cvae_losses
+cvae.compile(optimizer='adam', loss='binary_crossentropy', experimental_run_tf_function=True)  # cvae_losses
 
 from IPython.display import clear_output
 from keras.callbacks import LambdaCallback, ReduceLROnPlateau, TensorBoard
