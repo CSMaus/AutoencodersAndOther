@@ -34,6 +34,12 @@ Here first very simple conditional VAE thst uses pets images (it uses labels als
 Such low quality results are due to the too simple NN architecure (3 Fully connetcted layers) that is the base for this AE.<br>
 ![ConditioinalVAE_2Dense_lat_dim128_ims128](https://user-images.githubusercontent.com/60517813/175881094-e08b50f1-cb3b-4351-b312-95c1467aeb69.jpg)
 <br>
+
+### ConditionalVAE_space_sett.py
+Here convolutional NN in encoder/decoder.<br>
+![cCVAE_conv_ims280_latdim128](https://user-images.githubusercontent.com/60517813/176413925-74c3ef08-7ed9-4231-a014-71c6dfa696ed.png)
+<br>
+
 ### Further
 I have plans to upgrade and test different data preprocessing methods, write more complicated NN for encoder and decoder in AE to improve quality of output data.<br>
 But the next step (and 2 scripts) will be for the GAN (simple GAN with Conv NN as base).
