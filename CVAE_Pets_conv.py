@@ -14,6 +14,12 @@ import parameters as p
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+tf.debugging.set_log_device_placement(True)
+list_gpu = tf.config.experimental.list_physical_devices(device_type='GPU')
+for gpu in list_gpu:
+    tf.config.experimental.set_memory_growth(gpu, True)
+
+
 # PARAMETERS
 batch_size = p.batch_size
 latent_dim = p.latent_dim  # to be easier generate and visualize result
@@ -109,6 +115,10 @@ for img_batch, lbl_batch in valid_ds:
 from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
 disable_eager_execution()
 # #######################################################################################
+# tf.debugging.set_log_device_placement(True)
+# logical_gpus = tf.config.list_logical_devices('GPU')
+# mirrored_strategy = tf.distribute.MirroredStrategy(devices=logical_gpus, cross_device_ops=tf.distribute.HierarchicalCopyAllReduce())
+# with mirrored_strategy.scope():
 
 
 def add_units_to_conv2d(conv2, units):
@@ -135,7 +145,9 @@ def create_cvae():
     # print('shape of inp_lbls 0, 1', inp_lbls.shape[0], inp_lbls.shape[1])
     # sys.exit()
 
-    x = Conv2D(batch_size*2, (7, 7), activation='relu', padding='same')(inp_img)
+    x = Conv2D(batch_size * 4, (7, 7), activation='relu', padding='same')(inp_img)
+    x = MaxPooling2D((2, 2), padding='same')(x)
+    x = Conv2D(batch_size*2, (7, 7), activation='relu', padding='same')(x)
     x = MaxPooling2D((2, 2), padding='same')(x)
     x = add_units_to_conv2d(x, inp_lbls)
     x = Conv2D(batch_size, (2, 2), activation='relu', padding='same')(x)
@@ -179,6 +191,8 @@ def create_cvae():
     x = Conv2D(batch_size, (7, 7), activation='relu', padding='same')(x)
     x = UpSampling2D((2, 2))(x)
     x = Conv2D(batch_size*2, (2, 2), activation='relu', padding='same')(x)
+    x = UpSampling2D((2, 2))(x)
+    x = Conv2D(batch_size * 4, (2, 2), activation='relu', padding='same')(x)
     x = UpSampling2D((2, 2))(x)
     decoded = Conv2D(3, (7, 7), activation='sigmoid', padding='same')(x)
 

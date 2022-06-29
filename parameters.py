@@ -9,7 +9,7 @@ img_as_gray = False
 vae = False
 
 # ############### data settings: type of data, folder, library, etc ###############
-dataset_folder = 'D:/DataSets/dogs_cats'
+dataset_folder = 'C:/Users/oem/Documents/DataSets/dogs_cats'  # 'D:/DataSets/dogs_cats'
 dataset_ToSplit_folder = 'D:/DataSets/dogs_cats'
 destin_splitted_folder = 'D:/DataSets/splitted/dogs_cats'
 
@@ -28,7 +28,7 @@ use_my_pd = False  # using my preprocessing data algorithm
 
 # ##################### training parameters for models ############################
 batch_size = 32
-latent_dim = 128  # to be easier generate and visualize result
+latent_dim = 512  # to be easier generate and visualize result
 dropout_r = 0.1
 lr_0 = 0.0001
 epoch = 20
