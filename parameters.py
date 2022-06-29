@@ -3,7 +3,7 @@ using_dot_generator = False
 
 # ################## datas parameters (img size, color, etc)  ######################
 n = 8
-img_size = 28
+img_size = 56
 img_as_gray = False
 
 vae = False
@@ -31,5 +31,5 @@ batch_size = 500
 latent_dim = 256  # to be easier generate and visualize result
 dropout_r = 0.1
 lr_0 = 0.0001
-epoch = 30
+epoch = 5
 
