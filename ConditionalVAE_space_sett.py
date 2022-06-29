@@ -148,9 +148,9 @@ def create_cvae():
     inp_lbls = Input(shape=(num_classes,), dtype='float32')
 
     x = concatenate([flat, inp_lbls])
-    x = Dense(1024, activation='relu')(x)
+    x = Dense(2048, activation='relu')(x)
     x = apply_bn_and_dropout(x)
-    # x = Dense(128, activation='relu')(x)
+    x = Dense(1024, activation='relu')(x)
     # x = apply_bn_and_dropout(x)
 
     # predict logarithm of variation instead of standard deviation
@@ -177,8 +177,8 @@ def create_cvae():
     x = Dense(1024)(z)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
-    # x = Dense(256)(z)
-    # x = LeakyReLU()(x)
+    x = Dense(2048)(z)
+    x = LeakyReLU()(x)
     # x = apply_bn_and_dropout(x)
     x = Dense(ims * ims * 3, activation='sigmoid')(x)
     decoded = Reshape(ishape)(x)
@@ -388,4 +388,4 @@ decoded = cvae.predict([imgs, imgs_lbls], batch_size=batch_size)
 plot_digits(imgs[:n_compare], decoded[:n_compare])
 
 # Manifold drawing
-figure = draw_manifold(generator, show=True)
+figure = draw_manifold(generator, lbl=lbl, show=True)

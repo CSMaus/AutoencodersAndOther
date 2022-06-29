@@ -41,12 +41,14 @@ image_count = len(list(data_dir.glob('*/*.jpg')))
 print('Number of images:', image_count)
 
 if batch_size < image_count:
-    batch_size = int(image_count * 0.05)
+    if (image_count % batch_size) != 0:
+        batch_size = int(image_count * 0.05)
     # print(batch_size)
 else:
     batch_size = image_count // 2
 
 print('BATCH SIZE:', batch_size)
+# sys.exit()
 # image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255, validation_split=0.2)
 
 train_ds = tf.keras.utils.image_dataset_from_directory(
@@ -95,37 +97,17 @@ valid_lbl = full_lbls(valid_ds)
 
 print('\n\nshape train_img, train_lbl:', np.shape(train_img), np.shape(train_lbl), '\n')
 
+# We'll be tracking on these numbers
+imgs = []  # valid_img[:batch_size]
+imgs_lbls = []  # valid_lbl[:batch_size]
 
-'''
-train_ds = image_generator.flow_from_directory(
-    os.path.join(p.dataset_folder),
-    # class_mode='input',
-    target_size=(ims, ims),
-    batch_size=batch_size,
-    subset="training",
-    color_mode='rgb',
-    label_mode='categorical'
-)
-
-valid_ds = image_generator.flow_from_directory(
-    os.path.join(p.dataset_folder),
-    # class_mode='input',
-    target_size=(ims, ims),
-    batch_size=batch_size,
-    subset="validation",
-    color_mode='rgb',
-    label_mode='categorical'
-)'''
-
-data_augmentation = tf.keras.models.Sequential([
-    RandomFlip("horizontal", input_shape=(img_height, img_width, 3)),
-    RandomRotation(0.1),
-    RandomZoom(0.25)])
-# sys.exit()
+for img_batch, lbl_batch in valid_ds:
+    imgs = img_batch
+    imgs_lbls = lbl_batch
 
 # #######################################################################################
-# from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
-# disable_eager_execution()
+from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
+disable_eager_execution()
 # #######################################################################################
 
 
@@ -153,25 +135,26 @@ def create_cvae():
     # print('shape of inp_lbls 0, 1', inp_lbls.shape[0], inp_lbls.shape[1])
     # sys.exit()
 
-    x = concatenate([flat, inp_lbls])
-    x = Dense(1024, activation='relu')(x)
-    x = apply_bn_and_dropout(x)
-    # x = Conv2D(128, (7, 7), activation='relu', padding='same')(inp_img)
-    # x = MaxPooling2D((2, 2), padding='same')(x)
-    # x = add_units_to_conv2d(x, inp_lbls)
-    # x = Conv2D(32, (2, 2), activation='relu', padding='same')(x)
-    # x = MaxPooling2D((2, 2), padding='same')(x)
-    # enc = Conv2D(3, (7, 7), activation='relu', padding='same')(x)
-    # x = Flatten()(enc)
+    x = Conv2D(batch_size*2, (7, 7), activation='relu', padding='same')(inp_img)
+    x = MaxPooling2D((2, 2), padding='same')(x)
+    x = add_units_to_conv2d(x, inp_lbls)
+    x = Conv2D(batch_size, (2, 2), activation='relu', padding='same')(x)
+    x = MaxPooling2D((2, 2), padding='same')(x)
+    enc = Conv2D(3, (7, 7), activation='relu', padding='same')(x)
+    x = Flatten()(enc)
 
     # predict logarithm of variation instead of standard deviation
     z_mean = Dense(latent_dim)(x)
     z_log_var = Dense(latent_dim)(x)
+    print('\n\nshape of z_mean [0], [1]:', z_mean.shape[0], z_mean.shape[1], '\n')
 
     # sampling from Q with reparametrisation
     def sampling(args):
         z_means, z_log_vars = args
         epsilon = bk.random_normal(shape=(batch_size, latent_dim), mean=0., stddev=1.0)
+
+        # print('\n\nshape of z_mean [0], [1]', z_mean.shape[0], z_mean.shape[1], '\n')
+        # print('\n\nshape of epsilon [0], [1]', epsilon.shape[0], epsilon.shape[1], '\n')
         return z_means + bk.exp(z_log_vars / 2) * epsilon
 
     l = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
@@ -179,6 +162,7 @@ def create_cvae():
     # l_z = concatenate([z_mean, inp_lbls])
 
     encoder = Model([inp_img, inp_lbls], l_z, name='my_encoder')
+    encoder.summary()
     z_meaner = Model([inp_img, inp_lbls], z_mean, name='Enc_z_mean')
     models["encoder"] = encoder
     models["z_meaner"] = z_meaner
@@ -189,24 +173,17 @@ def create_cvae():
     # x = concatenate([z, lbl])
 
     # if we use convolutional VAE
-    # nn = int(ims//28)
-    # x = Dense(7*nn * 7*nn * 32, activation='relu', name='decoder_dense_1')(z)
-    # x = Reshape((7*nn, 7*nn, 32))(x)
-    # x = Conv2D(32, (7, 7), activation='relu', padding='same')(x)
-    # x = UpSampling2D((2, 2))(x)
-    # x = Conv2D(128, (2, 2), activation='relu', padding='same')(x)
-    # x = UpSampling2D((2, 2))(x)
-    # decoded = Conv2D(3, (7, 7), activation='sigmoid', padding='same')(x)
-
-    # Dense VAE
-    x = Dense(1024)(z)
-    x = LeakyReLU()(x)
-    x = apply_bn_and_dropout(x)
-    x = Dense(ims * ims * 3, activation='sigmoid')(x)
-    decoded = Reshape(ishape)(x)
+    nn = int(ims//28)
+    x = Dense(7*nn * 7*nn * batch_size, activation='relu', name='decoder_dense_1')(z)
+    x = Reshape((7*nn, 7*nn, batch_size))(x)
+    x = Conv2D(batch_size, (7, 7), activation='relu', padding='same')(x)
+    x = UpSampling2D((2, 2))(x)
+    x = Conv2D(batch_size*2, (2, 2), activation='relu', padding='same')(x)
+    x = UpSampling2D((2, 2))(x)
+    decoded = Conv2D(3, (7, 7), activation='sigmoid', padding='same')(x)
 
     decoder = Model(z, decoded, name='my_decoder')  # [z, inp_lbls_d]
-
+    decoder.summary()
     models["decoder"] = decoder
 
     cvae_out = decoder(encoder([inp_img, inp_lbls]))
@@ -246,14 +223,6 @@ epochs = []
 
 # Saves epoches
 save_epochs = set(list((np.arange(0, 59) ** 1.701).astype(int)) + list(range(10)))
-
-# We'll be tracking on these numbers
-imgs = []  # valid_img[:batch_size]
-imgs_lbls = []  # valid_lbl[:batch_size]
-
-for img_batch, lbl_batch in valid_ds:
-    imgs = img_batch
-    imgs_lbls = lbl_batch
 
 n_compare = 10
 
