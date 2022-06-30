@@ -41,11 +41,11 @@ data_dir = pathlib.Path(data_dir)
 image_count = len(list(data_dir.glob('*/*.jpg')))
 print('Number of images:', image_count)
 
-if batch_size < image_count:
-    batch_size = int(image_count * 0.05)
-    # print(batch_size)
-else:
-    batch_size = image_count // 2
+# if batch_size < image_count:
+#     batch_size = int(image_count * 0.05)
+#     # print(batch_size)
+# else:
+#     batch_size = image_count // 2
 
 print('BATCH SIZE:', batch_size)
 image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1.0 / 255, validation_split=0.2)
@@ -342,11 +342,10 @@ lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
 tb = TensorBoard(log_dir=f'logs/{name}')
 
 # Run training
-cvae.fit(x=[train_img, train_lbl], y=train_img, shuffle=True, epochs=epoch,
-         batch_size=batch_size,
-         validation_data=([valid_img, valid_lbl], valid_img),
-         callbacks=[tb],
-         verbose=1)
+cvae.fit([train_img, train_lbl], train_img, shuffle=True, epochs=epoch,
+                   validation_data=([valid_img, valid_lbl], valid_img),
+                   callbacks=[tb],
+                   verbose=1)
 
 
 def style_transfer(model, X, lbl_in, lbl_out):
