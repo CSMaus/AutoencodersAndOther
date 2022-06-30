@@ -178,7 +178,7 @@ def create_cvae():
     bs =int(batch_size//2)
     x = Dense(7*nn * 7*nn * bs, activation='relu', name='decoder_dense_1')(z)
     x = Reshape((7*nn, 7*nn, bs))(x)
-    x = Conv2D(bs, kernel_size=(1, 1), activation='relu', padding='same')(x)
+    x = Conv2D(bs, kernel_size=(7, 7), activation='relu', padding='same')(x)
     # x = UpSampling2D((2, 2))(x)
     x = Conv2D(batch_size, (3, 3), activation='relu', padding='same')(x)
     x = UpSampling2D((2, 2))(x)
