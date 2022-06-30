@@ -137,10 +137,13 @@ def create_cvae():
 
     x = Conv2D(batch_size * 2, (7, 7), activation='relu', padding='same')(inp_img)
     x = MaxPooling2D((2, 2), padding='same')(x)
-    x = Conv2D(batch_size * 2, (7, 7), activation='relu', padding='same')(x)
-    x = MaxPooling2D((2, 2), padding='same')(x)
     x = add_units_to_conv2d(x, inp_lbls)
-    x = Conv2D(batch_size, (2, 2), activation='relu', padding='same')(x)
+    x = Conv2D(batch_size * 2, (5, 5), activation='relu', padding='same')(x)
+    x = MaxPooling2D((2, 2), padding='same')(x)
+
+    x = Conv2D(batch_size, (3, 3), activation='relu', padding='same')(x)
+    x = MaxPooling2D((2, 2), padding='same')(x)
+    x = Conv2D(int(batch_size//2), kernel_size=(3, 3), activation='relu', padding='same')(x)
     x = MaxPooling2D((2, 2), padding='same')(x)
     enc = Conv2D(3, (7, 7), activation='relu', padding='same')(x)
     x = Flatten()(enc)
@@ -172,13 +175,16 @@ def create_cvae():
     # x = concatenate([z, lbl])
 
     nn = int(ims//56)  # 28
-    x = Dense(7*nn * 7*nn * batch_size, activation='relu', name='decoder_dense_1')(z)
-    x = Reshape((7*nn, 7*nn, batch_size))(x)
-    x = Conv2D(batch_size, (7, 7), activation='relu', padding='same')(x)
+    bs =int(batch_size//2)
+    x = Dense(7*nn * 7*nn * bs, activation='relu', name='decoder_dense_1')(z)
+    x = Reshape((7*nn, 7*nn, bs))(x)
+    x = Conv2D(bs, kernel_size=(1, 1), activation='relu', padding='same')(x)
+    # x = UpSampling2D((2, 2))(x)
+    x = Conv2D(batch_size, (3, 3), activation='relu', padding='same')(x)
     x = UpSampling2D((2, 2))(x)
-    x = Conv2D(batch_size*2, (2, 2), activation='relu', padding='same')(x)
+    x = Conv2D(batch_size*2, (3, 3), activation='relu', padding='same')(x)
     x = UpSampling2D((2, 2))(x)
-    x = Conv2D(batch_size * 2, (2, 2), activation='relu', padding='same')(x)
+    x = Conv2D(batch_size * 2, (5, 5), activation='relu', padding='same')(x)
     x = UpSampling2D((2, 2))(x)
     decoded = Conv2D(3, (7, 7), activation='sigmoid', padding='same')(x)
 
@@ -206,6 +212,8 @@ def create_cvae():
 
 cvae_models, cvae_losses = create_cvae()
 cvae = cvae_models["cvae"]
+
+disable_eager_execution()
 
 cvae.compile(optimizer='adam', loss='binary_crossentropy', experimental_run_tf_function=True)  # cvae_losses
 
@@ -258,11 +266,16 @@ lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
 tb = TensorBoard(log_dir=f'logs/{name}')
 
 # Run training
-
-cvae.fit(x=[train_img, train_lbl], y=train_img, shuffle=True, epochs=epoch,
-         validation_data=([valid_img, valid_lbl], valid_img),
-         callbacks=[tb],
-         verbose=1)
+disable_eager_execution()
+cvae.fit(
+    x=[train_img, train_lbl],
+    y=train_img,
+    batch_size=batch_size,
+    shuffle=True,
+    epochs=epoch,
+    validation_data=([valid_img, valid_lbl], valid_img),
+    callbacks=[tb],
+    verbose=1)
 # batch_size=batch_size,
 
 # Plot images

@@ -214,19 +214,19 @@ cvae = cvae_models["cvae"]
 
 cvae.compile(optimizer='adam', loss=cvae_losses, experimental_run_tf_function=False)  # cvae_losses
 
-# Plot images / digits
-digit_size = ims
+# Plot images / imagss
+imags_size = ims
 
 
-def plot_digits(*args, invert_colors=False):
+def plot_imagss(*args, invert_colors=False):
     args = [x.squeeze() for x in args]
     n_f = min([x.shape[0] for x in args])
-    figure = np.zeros((digit_size * len(args), digit_size * n_f, 3))
+    figure = np.zeros((imags_size * len(args), imags_size * n_f, 3))
 
     for i in range(n_f):
         for j in range(len(args)):
-            figure[j * digit_size: (j + 1) * digit_size,
-            i * digit_size: (i + 1) * digit_size, :] = args[j][i].squeeze()
+            figure[j * imags_size: (j + 1) * imags_size,
+            i * imags_size: (i + 1) * imags_size, :] = args[j][i].squeeze()
 
     if invert_colors:
         figure = 1 - figure
@@ -240,7 +240,7 @@ def plot_digits(*args, invert_colors=False):
     plt.show()
 
 
-n = 15  # Img with 15x15 digits
+n = 15  # Img with 15x15 imagss
 
 from scipy.stats import norm
 
@@ -257,7 +257,7 @@ grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
 
 
 def draw_manifold(generator, lbl, show=True):
-    figure = np.zeros((digit_size * n, digit_size * n))
+    figure = np.zeros((imags_size * n, imags_size * n))
     input_lbl = np.zeros((1, 10))
     input_lbl[0, lbl] = 1
     for i, yi in enumerate(grid_x):
@@ -266,9 +266,9 @@ def draw_manifold(generator, lbl, show=True):
             z_sample[:, :2] = np.array([[xi, yi]])
 
             x_decoded = generator.predict([z_sample, input_lbl])
-            digit = x_decoded[0].squeeze()
-            figure[i * digit_size: (i + 1) * digit_size,
-            j * digit_size: (j + 1) * digit_size] = digit
+            imags = x_decoded[0].squeeze()
+            figure[i * imags_size: (i + 1) * imags_size,
+            j * imags_size: (j + 1) * imags_size] = imags
     if show:
         plt.figure(figsize=(10, 10))
         plt.imshow(figure, cmap='Greys_r')
@@ -321,7 +321,7 @@ def on_epoch_end(epoch, logs):
 
         # Comparison of real and decoded numbers
         decoded = cvae.predict([imgs, imgs_lbls, imgs_lbls], batch_size=batch_size)
-        plot_digits(imgs[:n_compare], decoded[:n_compare])
+        plot_imagss(imgs[:n_compare], decoded[:n_compare])
 
         draw_lbl = np.random.randint(0, num_classes)
         print(draw_lbl)
@@ -342,10 +342,15 @@ lambda_pltfig = LambdaCallback(on_epoch_end=on_epoch_end)
 tb = TensorBoard(log_dir=f'logs/{name}')
 
 # Run training
-cvae.fit([train_img, train_lbl], train_img, shuffle=True, epochs=epoch,
-                   validation_data=([valid_img, valid_lbl], valid_img),
-                   callbacks=[tb],
-                   verbose=1)
+cvae.fit(
+    x=[train_img, train_lbl],
+    y=train_img,
+    batch_size=batch_size,
+    shuffle=True,
+    epochs=epoch,
+    validation_data=([valid_img, valid_lbl], valid_img),
+    callbacks=[tb],
+    verbose=1)
 
 
 def style_transfer(model, X, lbl_in, lbl_out):
@@ -376,7 +381,7 @@ for i in range(num_classes):
 
 prot = train_img[train_lbl.T[0] == lbl][:n]
 generated[lbl] = prot
-plot_digits(*generated, invert_colors=False)
+plot_imagss(*generated, invert_colors=False)
 
 # sys.exit()
 
@@ -384,7 +389,7 @@ plot_digits(*generated, invert_colors=False)
 print(type(imgs))
 print(imgs.shape)
 decoded = cvae.predict([imgs, imgs_lbls], batch_size=batch_size)
-plot_digits(imgs[:n_compare], decoded[:n_compare])
+plot_imagss(imgs[:n_compare], decoded[:n_compare])
 
 # Manifold drawing
 figure = draw_manifold(generator, lbl=lbl, show=True)
