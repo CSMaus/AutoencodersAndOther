@@ -4,7 +4,7 @@ import numpy as np, os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import sys
-from keras.layers import Input, Dense, BatchNormalization, Dropout, Flatten, Reshape, Lambda
+from keras.layers import Input, Dense, BatchNormalization, Dropout, Flatten, Reshape, Lambda, MaxPooling2D, Conv2D
 from keras.models import Model
 
 from keras.metrics.metrics import binary_crossentropy
@@ -14,7 +14,7 @@ from keras import backend as bk
 import tensorflow as tf
 
 import parameters as p
-from keras.layers import Rescaling, Reshape, Resizing, RandomZoom, RandomRotation, RandomFlip
+from keras.layers import UpSampling2D, Reshape, RandomZoom, RandomRotation, RandomFlip
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -190,10 +190,6 @@ def create_vae():
     x = Flatten()(input_img)
     x = Dense(512, activation='relu')(x)
     x = apply_bn_and_dropout(x)
-    x = Dense(256, activation='relu')(x)
-    x = apply_bn_and_dropout(x)
-    x = Dense(128, activation='relu')(x)
-    x = apply_bn_and_dropout(x)
 
     # predict logarithm of variation instead of standard deviation
     z_mean = Dense(latent_dim)(x)
@@ -214,13 +210,7 @@ def create_vae():
 
     # Decoder
     z = Input(shape=(latent_dim,))
-    x = Dense(128)(z)
-    x = LeakyReLU()(x)
-    x = apply_bn_and_dropout(x)
-    x = Dense(256)(x)
-    x = LeakyReLU()(x)
-    x = apply_bn_and_dropout(x)
-    x = Dense(512)(x)
+    x = Dense(512)(z)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
     x = Dense(ims * ims * 3, activation='sigmoid')(x)
