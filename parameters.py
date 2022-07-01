@@ -32,5 +32,5 @@ batch_size = 240
 latent_dim = 512  # to be easier generate and visualize result
 dropout_r = 0.1
 lr_0 = 0.0001
-epoch = 15
+epoch = 7
 
