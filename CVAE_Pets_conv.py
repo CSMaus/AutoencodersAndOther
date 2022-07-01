@@ -19,7 +19,6 @@ list_gpu = tf.config.experimental.list_physical_devices(device_type='GPU')
 for gpu in list_gpu:
     tf.config.experimental.set_memory_growth(gpu, True)
 
-
 # PARAMETERS
 batch_size = p.batch_size
 latent_dim = p.latent_dim  # to be easier generate and visualize result
@@ -73,12 +72,10 @@ valid_ds = tf.keras.utils.image_dataset_from_directory(
     color_mode="rgb"
 )
 
-
 ishape = (ims, ims, 3)
 class_names = train_ds.class_names  # os.listdir(os.path.join(data_dir))
 num_classes = len(class_names)
 print('num_classes:', num_classes, '-', class_names)
-
 
 full_imgs = lambda ds: np.concatenate([x for x, y in ds])
 full_lbls = lambda ds: np.concatenate([y for x, y in ds])
@@ -104,19 +101,19 @@ for img_batch, lbl_batch in valid_ds:
 
 # #######################################################################################
 from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
+
 disable_eager_execution()
 # #######################################################################################
 tf.debugging.set_log_device_placement(True)
 logical_gpus = tf.config.list_logical_devices('GPU')
-mirrored_strategy = tf.distribute.MirroredStrategy(devices=logical_gpus, cross_device_ops=tf.distribute.HierarchicalCopyAllReduce())
+mirrored_strategy = tf.distribute.MirroredStrategy(devices=logical_gpus,
+                                                   cross_device_ops=tf.distribute.HierarchicalCopyAllReduce())
 with mirrored_strategy.scope():
-
-
     def add_units_to_conv2d(conv2, units):
         dim1 = int(conv2.shape[1])
         dim2 = int(conv2.shape[2])
         dimc = int(units.shape[1])
-        repeat_n = dim1*dim2
+        repeat_n = dim1 * dim2
         units_repeat = RepeatVector(repeat_n)(units)  # lbl -> units
         units_repeat = Reshape((dim1, dim2, dimc))(units_repeat)
         return concatenate([conv2, units_repeat])
@@ -174,10 +171,10 @@ with mirrored_strategy.scope():
         z = Input(shape=(latent_dim + num_classes,))
         # x = concatenate([z, lbl])
 
-        nn = int(ims//56)  # 28
-        bs =int(batch_size//2)
-        x = Dense(7*2 * 7*2 * 8, activation='relu', name='decoder_dense_1')(z)
-        x = Reshape((7*2, 7*2, 8))(x)
+        nn = int(ims // 56)  # 28
+        bs = int(batch_size // 2)
+        x = Dense(7 * 2 * 7 * 2 * 8, activation='relu', name='decoder_dense_1')(z)
+        x = Reshape((7 * 2, 7 * 2, 8))(x)
         x = Conv2D(32, kernel_size=(7, 7), activation='relu', padding='same')(x)
         x = UpSampling2D((2, 2))(x)
         x = Conv2D(64, (3, 3), activation='relu', padding='same')(x)
@@ -205,7 +202,7 @@ with mirrored_strategy.scope():
             decodedf = bk.reshape(decodedf, shape=(batch_size, ims * ims * 3))
             xent_loss = ims * ims * 3 * binary_crossentropy(xf, decodedf)
             kl_loss = -0.5 * bk.sum(1 + z_log_var - bk.square(z_mean) - bk.exp(z_log_var), axis=-1)
-            return (xent_loss + kl_loss)/2/ims/ims/3
+            return (xent_loss + kl_loss) / 2 / ims / ims / 3
 
         return models, vae_loss
 
@@ -267,6 +264,7 @@ with mirrored_strategy.scope():
 
     # Run training
     disable_eager_execution()
+    sys.exit()
     cvae.fit(
         x=[train_img, train_lbl],
         y=train_img,
@@ -279,18 +277,18 @@ with mirrored_strategy.scope():
     # batch_size=batch_size,
 
 # Plot images
-images_size = ims
+# ims = ims
 
 
 def plot_images(*args, invert_colors=False):
     args = [x.squeeze() for x in args]
     n_f = min([x.shape[0] for x in args])
-    figure = np.zeros((images_size * len(args), images_size * n_f, 3))
+    figure = np.zeros((ims * len(args), ims * n_f, 3))
 
     for i in range(n_f):
         for j in range(len(args)):
-            figure[j * images_size: (j + 1) * images_size,
-            i * images_size: (i + 1) * images_size, :] = args[j][i].squeeze()
+            figure[j * ims: (j + 1) * ims,
+            i * ims: (i + 1) * ims, :] = args[j][i].squeeze()
 
     if invert_colors:
         figure = 1 - figure
@@ -311,30 +309,6 @@ from scipy.stats import norm
 
 grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
 grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
-
-
-def draw_manifold(generator, lbl, show=True):
-    figure = np.zeros((images_size * n, images_size * n))
-    input_lbl = np.zeros((1, 10))
-    input_lbl[0, lbl] = 1
-    for i, yi in enumerate(grid_x):
-        for j, xi in enumerate(grid_y):
-            z_sample = np.zeros((1, latent_dim))
-            z_sample[:, :2] = np.array([[xi, yi]])
-
-            x_decoded = generator.predict([z_sample, input_lbl])
-            images = x_decoded[0].squeeze()
-            figure[i * images_size: (i + 1) * images_size,
-            j * images_size: (j + 1) * images_size] = images
-    if show:
-        plt.figure(figsize=(10, 10))
-        plt.imshow(figure, cmap='Greys_r')
-        plt.grid(False)
-        ax = plt.gca()
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-        plt.show()
-    return figure
 
 
 def draw_z_distr(z_predicted, lbl):
@@ -383,6 +357,3 @@ print(type(imgs))
 print(imgs.shape)
 decoded = cvae.predict([imgs, imgs_lbls], batch_size=batch_size)
 plot_images(imgs[:n_compare], decoded[:n_compare])
-
-# Manifold drawing
-figure = draw_manifold(generator, show=True)

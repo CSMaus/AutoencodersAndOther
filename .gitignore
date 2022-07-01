@@ -10,7 +10,9 @@ __pycache__/
 *.idea/
 *logs/
 *.vscode/
-*.ipynb
+*ConditionalVAE_mnist.ipynb
+*Untitled1.ipynb
+
 *VariationalAutoencoder2.py
 
 # Distribution / packaging

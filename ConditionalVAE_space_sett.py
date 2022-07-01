@@ -1,4 +1,3 @@
-# NOW IT WORKS ONLY WITH KERAS V 2.4.0
 import keras.optimizers
 import numpy as np, os, pathlib, matplotlib.pyplot as plt, sys, seaborn as sns
 from keras.layers import Input, Dense, BatchNormalization, Dropout, Flatten, Reshape, Lambda, Concatenate
@@ -250,36 +249,6 @@ grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
 grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
 
 
-from scipy.stats import norm
-
-grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
-grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
-
-
-def draw_manifold(generator, lbl, show=True):
-    figure = np.zeros((imags_size * n, imags_size * n))
-    input_lbl = np.zeros((1, 10))
-    input_lbl[0, lbl] = 1
-    for i, yi in enumerate(grid_x):
-        for j, xi in enumerate(grid_y):
-            z_sample = np.zeros((1, latent_dim))
-            z_sample[:, :2] = np.array([[xi, yi]])
-
-            x_decoded = generator.predict([z_sample, input_lbl])
-            imags = x_decoded[0].squeeze()
-            figure[i * imags_size: (i + 1) * imags_size,
-            j * imags_size: (j + 1) * imags_size] = imags
-    if show:
-        plt.figure(figsize=(10, 10))
-        plt.imshow(figure, cmap='Greys_r')
-        plt.grid(False)
-        ax = plt.gca()
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-        plt.show()
-    return figure
-
-
 def draw_z_distr(z_predicted, lbl):
     input_lbl = np.zeros((1, 10))
     input_lbl[0, lbl] = 1
@@ -390,6 +359,3 @@ print(type(imgs))
 print(imgs.shape)
 decoded = cvae.predict([imgs, imgs_lbls], batch_size=batch_size)
 plot_imagss(imgs[:n_compare], decoded[:n_compare])
-
-# Manifold drawing
-figure = draw_manifold(generator, lbl=lbl, show=True)

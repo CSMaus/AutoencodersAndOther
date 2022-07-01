@@ -10,7 +10,7 @@ vae = False
 
 # ############### data settings: type of data, folder, library, etc ###############
 # 'D:/DataSets/dogs_cats'  'C:/Users/oem/Documents/DataSets/dogs_cats'
-dataset_folder = 'C:/Users/oem/Documents/DataSets/dogs_cats'
+dataset_folder = 'D:/DataSets/dogs_cats'
 dataset_ToSplit_folder = 'D:/DataSets/dogs_cats'
 destin_splitted_folder = 'D:/DataSets/splitted/dogs_cats'
 
