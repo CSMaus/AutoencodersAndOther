@@ -147,9 +147,9 @@ def create_cvae():
     inp_lbls = Input(shape=(num_classes,), dtype='float32')
 
     x = concatenate([flat, inp_lbls])
-    x = Dense(2048, activation='relu')(x)
-    x = apply_bn_and_dropout(x)
     x = Dense(1024, activation='relu')(x)
+    x = apply_bn_and_dropout(x)
+    x = Dense(512, activation='relu')(x)
     # x = apply_bn_and_dropout(x)
 
     # predict logarithm of variation instead of standard deviation
@@ -173,10 +173,10 @@ def create_cvae():
 
     # Decoder
     z = Input(shape=(latent_dim + num_classes,))
-    x = Dense(1024)(z)
+    x = Dense(512)(z)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
-    x = Dense(2048)(z)
+    x = Dense(1024)(z)
     x = LeakyReLU()(x)
     # x = apply_bn_and_dropout(x)
     x = Dense(ims * ims * 3, activation='sigmoid')(x)
