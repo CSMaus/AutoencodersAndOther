@@ -176,7 +176,7 @@ def create_cvae():
     x = Dense(512)(z)
     x = LeakyReLU()(x)
     x = apply_bn_and_dropout(x)
-    x = Dense(1024)(z)
+    x = Dense(1024)(x)
     x = LeakyReLU()(x)
     # x = apply_bn_and_dropout(x)
     x = Dense(ims * ims * 3, activation='sigmoid')(x)
