@@ -8,8 +8,11 @@ __pycache__/
 
 # Folders
 *.idea/
+*sorted/
+*archive/
 *logs/
 *.vscode/
+*checkpoint_path/
 *ConditionalVAE_mnist.ipynb
 *Untitled1.ipynb
 
@@ -136,3 +139,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+*.zip
