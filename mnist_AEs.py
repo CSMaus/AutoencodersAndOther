@@ -171,14 +171,13 @@ s_autoencoder.fit(x_train, x_train, epochs=50, batch_size=256, shuffle=True, val
 n = 5
 imgs = x_test[:n]
 encoded_imgs = s_encoder.predict(imgs, batch_size=16)
-codes = np.vstack([encoded_imgs.mean(axis=0)]*10)
+codes = np.vstack([encoded_imgs.mean(axis=0)] * 10)
 np.fill_diagonal(codes, encoded_imgs.max(axis=0))
 
 decoded_features = s_decoder.predict(codes, batch_size=16)
 plot_digits(imgs, decoded_features)
 
 sys.exit()
-
 
 c_encoder, c_decoder, c_autoencoder = create_deeper_dense_ae()
 
@@ -201,7 +200,35 @@ n = 10
 
 imgs = x_test[:batch_size]
 noised_imgs = c_noiser.predict(imgs, batch_size=batch_size)
-encoded_imgs = c_encoder.predict(noised_imgs[:n],  batch_size=n)
+encoded_imgs = c_encoder.predict(noised_imgs[:n], batch_size=n)
 decoded_imgs = c_decoder.predict(encoded_imgs[:n], batch_size=n)
 
 plot_digits(imgs[:n], noised_imgs, decoded_imgs)
+
+paramk = 11  # parameter k of k-nearest neighbors
+numTrainImages = np.shape(trLabels)[0]  # so many train images
+numTestImages = np.shape(tLabels)[0]  # so many test images
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
