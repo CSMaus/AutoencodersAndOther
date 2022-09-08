@@ -28,12 +28,12 @@ import parameters as p
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 # PARAMETERS
-batch_size = p.batch_size
+batch_size = 500
 latent_dim = p.latent_dim  # to be easier generate and visualize result
 coders_dim = 512
 dropout_r = p.dropout_r
 lr_0 = p.lr_0
-epoch = p.epoch
+epoch = 10
 opt = Adam(learning_rate=0.001)
 
 img_height = p.img_size
@@ -152,6 +152,7 @@ encoder = Model([inp_img, inp_lbl], z)  # [inp_img, inp_lbl], zc
 decoder = Model(d_in, d_out)
 
 cvae_out = decoder(concatenate([encoder([inp_img, inp_lbl]), inp_lbl]))
+
 # cvae_out = decoder(encoder([inp_img, inp_lbl]), inp_lbl)
 cvae = Model([inp_img, inp_lbl], cvae_out)
 

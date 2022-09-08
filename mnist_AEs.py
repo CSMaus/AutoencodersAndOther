@@ -190,11 +190,12 @@ c_autoencoder.summary()
 # get data, add a lot of noise (noise factor ~0.5) and train to restore data from noisy images
 c_noiser, c_denoiser_model = create_denoising_model(c_autoencoder)
 c_denoiser_model.compile(optimizer='adam', loss='binary_crossentropy')
-c_denoiser_model.fit(x_train, x_train,
-                     epochs=40,
-                     batch_size=batch_size,
-                     shuffle=True,
-                     validation_data=(x_test, x_test))
+c_denoiser_model.fit(
+    x_train, x_train,
+    epochs=40,
+    batch_size=batch_size,
+    shuffle=True,
+    validation_data=(x_test, x_test))
 
 n = 10
 
