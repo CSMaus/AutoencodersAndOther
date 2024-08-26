@@ -20,7 +20,6 @@ from keras.optimizers import Adam
 import tensorflow as tf
 from keras.layers import Rescaling, Reshape, Resizing, RandomZoom, RandomRotation, RandomFlip
 
-
 import pathlib
 import numpy as np, matplotlib.pyplot as plt, sys, os
 import parameters as p
@@ -63,6 +62,7 @@ print(type(y_train))
 # sys.exit()
 # ######
 from tensorflow.python.framework.ops import disable_eager_execution
+
 disable_eager_execution()
 
 
@@ -131,14 +131,11 @@ x = d_hidden1(d_in)
 x = d_hidden2(x)
 d_out = decoded_out(x)
 
-
-
 # DECODER: i change model structure: shape of d_in same as zc, so let's try it
 '''d_in = Input(shape=(latent_dim + num_classes,))
 x = Dense(coders_dim, activation='relu')(d_in)
 x = Dense(256, activation='relu')(x)
 d_out = Dense(n_pixels, activation='sigmoid')(x)'''
-
 
 # ######## IF WE USE old way for cvae, encoder, DECODER:
 # cvae = Model([inp_img, inp_lbl], outputs)
@@ -160,6 +157,7 @@ cvae.compile(optimizer=opt, loss=vae_loss, metrics=[KL_loss, recon_loss])
 # sys.exit()
 
 import tensorflow._api.v2.compat.v1 as tf
+
 tf.disable_v2_behavior()
 
 cvae_hist = cvae.fit([x_train, y_train], x_train, verbose=1,
@@ -199,9 +197,6 @@ decoded_ims = cvae.predict(imgs, batch_size=batch_size)
 plot_digits(imgs[:n_compare], decoded_ims[:n_compare])
 
 
-
-
-
 def construct_numvec(digit, zf=None):
     out = np.zeros((1, latent_dim + num_classes))
     out[:, digit + latent_dim] = 1.
@@ -211,6 +206,8 @@ def construct_numvec(digit, zf=None):
         for i in range(len(zf)):
             out[:, i] = zf[i]
         return (out)
+
+
 sample_3 = construct_numvec(3)
 print(sample_3)
 
@@ -227,9 +224,9 @@ max_z = 1.5
 
 img_it = 0
 for i in range(0, sides):
-    z1 = (((i / (sides-1)) * max_z)*2) - max_z
+    z1 = (((i / (sides - 1)) * max_z) * 2) - max_z
     for j in range(0, sides):
-        z2 = (((j / (sides-1)) * max_z)*2) - max_z
+        z2 = (((j / (sides - 1)) * max_z) * 2) - max_z
         z_ = [z1, z2]
         vec = construct_numvec(dig, z_)
         decoded = decoder.predict(vec)
@@ -245,9 +242,9 @@ max_z = 1.5
 
 img_it = 0
 for i in range(0, sides):
-    z1 = (((i / (sides-1)) * max_z)*2) - max_z
+    z1 = (((i / (sides - 1)) * max_z) * 2) - max_z
     for j in range(0, sides):
-        z2 = (((j / (sides-1)) * max_z)*2) - max_z
+        z2 = (((j / (sides - 1)) * max_z) * 2) - max_z
         z_ = [z1, z2]
         vec = construct_numvec(dig, z_)
         decoded = decoder.predict(vec)
@@ -256,7 +253,6 @@ for i in range(0, sides):
         plt.imshow(decoded.reshape(28, 28), cmap='gray')
 plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=.2)
 plt.show()
-
 
 dig = 6
 sides = 8
@@ -264,9 +260,9 @@ max_z = 1.5
 
 img_it = 0
 for i in range(0, sides):
-    z1 = (((i / (sides-1)) * max_z)*2) - max_z
+    z1 = (((i / (sides - 1)) * max_z) * 2) - max_z
     for j in range(0, sides):
-        z2 = (((j / (sides-1)) * max_z)*2) - max_z
+        z2 = (((j / (sides - 1)) * max_z) * 2) - max_z
         z_ = [z1, z2]
         vec = construct_numvec(dig, z_)
         decoded = decoder.predict(vec)
@@ -275,4 +271,3 @@ for i in range(0, sides):
         plt.imshow(decoded.reshape(28, 28), cmap='gray')
 plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=.2)
 plt.show()
-
